@@ -124,15 +124,15 @@
         const fromCorridor = urlParams.get('from') === 'corridor';
 
         let camYaw, camPitch;
-        if (fromCorridor) {
-            camera.position.set(5.55, 1.7, 7.2);
-            camYaw = Math.PI;          // regard vers -Z (intérieur de la chambre)
-            camPitch = 0.1;
-        } else {
-            camera.position.set(0, 1.6, 6.5);
-            camYaw = 0;
-            camPitch = 0.1;
-        }
+if (fromCorridor) {
+    camera.position.set(5.55, 1.7, 7.2);
+    camYaw = Math.PI;
+    camPitch = 0.1;
+} else {
+    camera.position.set(-7.01, 1.70, 0.69);
+    camYaw = 0;
+    camPitch = 0.1;
+}
 
         // ─── Lumières ──────────────────────────────────────────────────
         const ambient = new THREE.AmbientLight(0x887868, 0.6);
@@ -285,13 +285,163 @@
         plane(ROOM_D, WALL_H, mWall, -ROOM_W / 2, WALL_H / 2, 0, 0, Math.PI / 2);
         plane(ROOM_D, WALL_H, mWall, ROOM_W / 2, WALL_H / 2, 0, 0, -Math.PI / 2);
 
-        // Mur horizontal à Z=0, de X=-8 à X=+8, hauteur WALL_H
-const midWallMat = new THREE.MeshLambertMaterial({ map: stoneTex, color: 0xddd0b8, side: THREE.DoubleSide });
-const midWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, WALL_H), midWallMat);
-midWall.position.set(0, WALL_H / 2, 0);
-// pas de rotation (face vers Z positif/négatif)
-midWall.receiveShadow = true;
-scene.add(midWall);
+       // ═══════════════════════════════════════════════════════════════
+//  MUR CENTRAL (Z=0) AVEC PORTE INTERACTIVE
+// ═══════════════════════════════════════════════════════════════
+
+(function() {
+    const doorW = 1.2, doorH = 2.2;
+    const doorZ = 0;
+    const doorX = 0;  // centré
+
+    // ── 1. Matériau du mur (double face pour voir des deux côtés) ──
+    const midWallMat = new THREE.MeshLambertMaterial({
+        map: stoneTex,
+        color: 0xddd0b8,
+        side: THREE.DoubleSide
+    });
+
+    // ── 2. Découpage du mur en 4 blocs autour de la porte ──────────
+    const wallThick = 0.05;
+
+    // Bloc gauche (X < -doorW/2)
+    const leftW = -doorW/2 - (-ROOM_W/2);
+    if (leftW > 0.01) {
+        const leftBlock = new THREE.Mesh(
+            new THREE.BoxGeometry(leftW, WALL_H, wallThick),
+            midWallMat
+        );
+        leftBlock.position.set((-ROOM_W/2 + (-doorW/2)) / 2, WALL_H/2, doorZ);
+        leftBlock.castShadow = true;
+        leftBlock.receiveShadow = true;
+        scene.add(leftBlock);
+    }
+
+    // Bloc droite (X > doorW/2)
+    const rightW = ROOM_W/2 - doorW/2;
+    if (rightW > 0.01) {
+        const rightBlock = new THREE.Mesh(
+            new THREE.BoxGeometry(rightW, WALL_H, wallThick),
+            midWallMat
+        );
+        rightBlock.position.set((doorW/2 + ROOM_W/2) / 2, WALL_H/2, doorZ);
+        rightBlock.castShadow = true;
+        rightBlock.receiveShadow = true;
+        scene.add(rightBlock);
+    }
+
+    // Bloc au-dessus (Y > doorH)
+    const topH = WALL_H - doorH;
+    if (topH > 0.01) {
+        const topBlock = new THREE.Mesh(
+            new THREE.BoxGeometry(doorW * 1.4, topH, wallThick),
+            midWallMat
+        );
+        topBlock.position.set(doorX, (doorH + WALL_H) / 2, doorZ);
+        topBlock.castShadow = true;
+        topBlock.receiveShadow = true;
+        scene.add(topBlock);
+    }
+
+    // ── 3. Cadre de la porte ──────────────────────────────────────
+    const frameMatMid = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
+
+    // Montant gauche
+    const leftFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, doorH, 0.08),
+        frameMatMid
+    );
+    leftFrame.position.set(-doorW/2 - 0.04, doorH/2, doorZ);
+    leftFrame.castShadow = true;
+    scene.add(leftFrame);
+
+    // Montant droit
+    const rightFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, doorH, 0.08),
+        frameMatMid
+    );
+    rightFrame.position.set(doorW/2 + 0.04, doorH/2, doorZ);
+    rightFrame.castShadow = true;
+    scene.add(rightFrame);
+
+    // Traverse haute
+    const topFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(doorW + 0.16, 0.08, 0.08),
+        frameMatMid
+    );
+    topFrame.position.set(doorX, doorH + 0.04, doorZ);
+    topFrame.castShadow = true;
+    scene.add(topFrame);
+
+    // ── 4. Porte interactive (charnière à gauche) ──────────────
+    const pivotMid = new THREE.Group();
+    pivotMid.position.set(-doorW/2, doorH/2, doorZ);
+    scene.add(pivotMid);
+
+    const doorGroupMid = new THREE.Group();
+    doorGroupMid.position.set(doorW/2, 0, 0);
+
+    // Vantail
+    const doorMeshMid = new THREE.Mesh(
+        new THREE.BoxGeometry(doorW, doorH, 0.04),
+        mDoor
+    );
+    doorMeshMid.position.set(0, 0, 0);
+    doorMeshMid.castShadow = true;
+    doorMeshMid.receiveShadow = true;
+    doorGroupMid.add(doorMeshMid);
+
+    // Poignée (identique à l'autre porte)
+    const handleMid = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 8, 6),
+        mHandle
+    );
+    handleMid.position.set(0.35, -0.2, 0.06);
+    handleMid.castShadow = true;
+    doorGroupMid.add(handleMid);
+
+    const handleBaseMid = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.03, 0.03, 0.12, 6),
+        mHandle
+    );
+    handleBaseMid.rotation.x = Math.PI / 2;
+    handleBaseMid.position.set(0.35, -0.2, 0.04);
+    doorGroupMid.add(handleBaseMid);
+
+    // Zone cliquable (invisible)
+    const clickAreaMid = new THREE.Mesh(
+        new THREE.PlaneGeometry(doorW * 1.2, doorH * 1.2),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, side: THREE.DoubleSide })
+    );
+    clickAreaMid.position.set(0, 0, 0.02);
+    clickAreaMid.userData.isClickArea = true;
+    doorGroupMid.add(clickAreaMid);
+
+    pivotMid.add(doorGroupMid);
+
+    // ── 5. Variables globales pour cette porte ──────────────────
+    window._midDoorPivot = pivotMid;
+    window._midDoorGroup = doorGroupMid;
+    window._midDoorMesh = doorMeshMid;
+    window._midDoorMat = mDoor;
+    window._midDoorHighlightMat = mDoorHighlight;
+    window._midDoorOpen = false;
+    window._midDoorAnimating = false;
+
+    // ── 6. Lumière au-dessus de la porte ────────────────────────
+    const midLight = new THREE.PointLight(0xff8844, 0.3, 4);
+    midLight.position.set(0, doorH + 0.6, doorZ + 0.5);
+    scene.add(midLight);
+    const midGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 8, 6),
+        new THREE.MeshBasicMaterial({ color: 0xff8844 })
+    );
+    midGlow.position.copy(midLight.position);
+    scene.add(midGlow);
+
+})();
+
+
         // ─── Mur avant (z positif) avec fenêtre et porte ──────────
         (function() {
             const fw = 2.8, fh = 2.0;
@@ -2030,7 +2180,82 @@ function handleKnobAction(action) {
 
         createVintageTV();
         setupInteractions();
+// ─── Porte du milieu (mur central) ───────────────────────────
+const raycasterMidDoor = new THREE.Raycaster();
+const mouseMidDoor = new THREE.Vector2();
+let hoverMidDoor = false;
+let midDoorHighlighted = false;
 
+function updateMidDoorInteraction(event) {
+    const rect = canvas.getBoundingClientRect();
+    mouseMidDoor.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseMidDoor.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycasterMidDoor.setFromCamera(mouseMidDoor, camera);
+    const pivot = window._midDoorPivot;
+    if (!pivot) return;
+    const doorGroup = window._midDoorGroup;
+    const meshes = [];
+    doorGroup.children.forEach(child => {
+        if (child.isMesh && (child === window._midDoorMesh || child.userData.isClickArea)) {
+            meshes.push(child);
+        }
+    });
+    const intersects = raycasterMidDoor.intersectObjects(meshes);
+
+    if (intersects.length > 0) {
+        canvas.style.cursor = 'pointer';
+        if (!midDoorHighlighted && !window._midDoorOpen) {
+            window._midDoorMesh.material = mDoorHighlight;
+            midDoorHighlighted = true;
+        }
+        hoverMidDoor = true;
+    } else {
+        if (midDoorHighlighted) {
+            window._midDoorMesh.material = mDoor;
+            midDoorHighlighted = false;
+        }
+        hoverMidDoor = false;
+    }
+}
+
+canvas.addEventListener('mousemove', updateMidDoorInteraction);
+
+canvas.addEventListener('click', function(event) {
+    if (hoverMidDoor && !window._midDoorOpen && !window._midDoorAnimating) {
+        openMidDoor();
+    }
+});
+
+function openMidDoor() {
+    if (window._midDoorOpen || window._midDoorAnimating) return;
+    window._midDoorAnimating = true;
+    showToast('🚪 Porte intérieure...');
+
+    const pivot = window._midDoorPivot;
+    const targetAngle = Math.PI / 2;
+    const duration = 800;
+    const startTime = performance.now();
+    const startRot = 0;
+
+    function animateMidDoor(time) {
+        const elapsed = time - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const currentAngle = startRot + (targetAngle - startRot) * eased;
+        pivot.rotation.y = currentAngle;
+
+        if (progress < 1) {
+            requestAnimationFrame(animateMidDoor);
+        } else {
+            pivot.rotation.y = targetAngle;
+            window._midDoorOpen = true;
+            window._midDoorAnimating = false;
+            showToast('✅ Porte ouverte !');
+        }
+    }
+    requestAnimationFrame(animateMidDoor);
+}
         // ─── Contrôles ──────────────────────────────────────────────────
         let mdown = false,
             lmx = 0,
