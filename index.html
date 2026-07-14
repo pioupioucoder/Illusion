@@ -285,6 +285,13 @@
         plane(ROOM_D, WALL_H, mWall, -ROOM_W / 2, WALL_H / 2, 0, 0, Math.PI / 2);
         plane(ROOM_D, WALL_H, mWall, ROOM_W / 2, WALL_H / 2, 0, 0, -Math.PI / 2);
 
+        // Mur horizontal à Z=0, de X=-8 à X=+8, hauteur WALL_H
+const midWallMat = new THREE.MeshLambertMaterial({ map: stoneTex, color: 0xddd0b8, side: THREE.DoubleSide });
+const midWall = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W, WALL_H), midWallMat);
+midWall.position.set(0, WALL_H / 2, 0);
+// pas de rotation (face vers Z positif/négatif)
+midWall.receiveShadow = true;
+scene.add(midWall);
         // ─── Mur avant (z positif) avec fenêtre et porte ──────────
         (function() {
             const fw = 2.8, fh = 2.0;
