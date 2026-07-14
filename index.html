@@ -440,6 +440,15 @@ if (fromCorridor) {
     scene.add(midGlow);
 
 })();
+canvas.addEventListener('click', function(event) {
+    // Porte extérieure : on affiche le monologue sans ouvrir la porte
+    if (hoverDoor) {
+        // On réinitialise l'état de la porte pour pouvoir recliquer après "No"
+        window._doorOpen = false;
+        window._doorAnimating = false;
+        showMonologue();
+    }
+});
 
 
         // ─── Mur avant (z positif) avec fenêtre et porte ──────────
@@ -2169,6 +2178,7 @@ function handleKnobAction(action) {
             }
             break;
     }
+
     try {
         sessionStorage.setItem('tvState', JSON.stringify({
             isOn: window._isOn,
@@ -2179,112 +2189,265 @@ function handleKnobAction(action) {
         }
 
         createVintageTV();
-        setupInteractions();
-// ─── Porte du milieu (mur central) ───────────────────────────
-const raycasterMidDoor = new THREE.Raycaster();
-const mouseMidDoor = new THREE.Vector2();
-let hoverMidDoor = false;
-let midDoorHighlighted = false;
+        setupInteractions();       
 
-function updateMidDoorInteraction(event) {
-    const rect = canvas.getBoundingClientRect();
-    mouseMidDoor.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouseMidDoor.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        // ============================================================
+        //  PORTE DU MILIEU (mur central)
+        // ============================================================
+        const raycasterMidDoor = new THREE.Raycaster();
+        const mouseMidDoor = new THREE.Vector2();
+        let hoverMidDoor = false;
+        let midDoorHighlighted = false;
 
-    raycasterMidDoor.setFromCamera(mouseMidDoor, camera);
-    const pivot = window._midDoorPivot;
-    if (!pivot) return;
-    const doorGroup = window._midDoorGroup;
-    const meshes = [];
-    doorGroup.children.forEach(child => {
-        if (child.isMesh && (child === window._midDoorMesh || child.userData.isClickArea)) {
-            meshes.push(child);
+        function updateMidDoorInteraction(event) {
+            const rect = canvas.getBoundingClientRect();
+            mouseMidDoor.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouseMidDoor.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycasterMidDoor.setFromCamera(mouseMidDoor, camera);
+            const pivot = window._midDoorPivot;
+            if (!pivot) return;
+            const doorGroup = window._midDoorGroup;
+            const meshes = [];
+            doorGroup.children.forEach(child => {
+                if (child.isMesh && (child === window._midDoorMesh || child.userData.isClickArea)) {
+                    meshes.push(child);
+                }
+            });
+            const intersects = raycasterMidDoor.intersectObjects(meshes);
+            if (intersects.length > 0) {
+                canvas.style.cursor = 'pointer';
+                if (!midDoorHighlighted && !window._midDoorOpen) {
+                    window._midDoorMesh.material = mDoorHighlight;
+                    midDoorHighlighted = true;
+                }
+                hoverMidDoor = true;
+            } else {
+                if (midDoorHighlighted) {
+                    window._midDoorMesh.material = mDoor;
+                    midDoorHighlighted = false;
+                }
+                hoverMidDoor = false;
+            }
         }
-    });
-    const intersects = raycasterMidDoor.intersectObjects(meshes);
+        canvas.addEventListener('mousemove', updateMidDoorInteraction);
 
-    if (intersects.length > 0) {
-        canvas.style.cursor = 'pointer';
-        if (!midDoorHighlighted && !window._midDoorOpen) {
-            window._midDoorMesh.material = mDoorHighlight;
-            midDoorHighlighted = true;
-        }
-        hoverMidDoor = true;
-    } else {
-        if (midDoorHighlighted) {
-            window._midDoorMesh.material = mDoor;
-            midDoorHighlighted = false;
-        }
-        hoverMidDoor = false;
-    }
-}
-
-canvas.addEventListener('mousemove', updateMidDoorInteraction);
-
-canvas.addEventListener('click', function(event) {
-    if (hoverMidDoor && !window._midDoorOpen && !window._midDoorAnimating) {
-        openMidDoor();
-    }
-});
-
-function openMidDoor() {
-    if (window._midDoorOpen || window._midDoorAnimating) return;
-    window._midDoorAnimating = true;
-    showToast('🚪 Porte intérieure...');
-
-    const pivot = window._midDoorPivot;
-    const targetAngle = Math.PI / 2;
-    const duration = 800;
-    const startTime = performance.now();
-    const startRot = 0;
-
-    function animateMidDoor(time) {
-        const elapsed = time - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        const currentAngle = startRot + (targetAngle - startRot) * eased;
-        pivot.rotation.y = currentAngle;
-
-        if (progress < 1) {
+        function openMidDoor() {
+            if (window._midDoorOpen || window._midDoorAnimating) return;
+            window._midDoorAnimating = true;
+            showToast('🚪 Porte intérieure...');
+            const pivot = window._midDoorPivot;
+            const targetAngle = Math.PI / 2;
+            const duration = 800;
+            const startTime = performance.now();
+            const startRot = 0;
+            function animateMidDoor(time) {
+                const elapsed = time - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const currentAngle = startRot + (targetAngle - startRot) * eased;
+                pivot.rotation.y = currentAngle;
+                if (progress < 1) {
+                    requestAnimationFrame(animateMidDoor);
+                } else {
+                    pivot.rotation.y = targetAngle;
+                    window._midDoorOpen = true;
+                    window._midDoorAnimating = false;
+                    showToast('✅ Porte ouverte !');
+                }
+            }
             requestAnimationFrame(animateMidDoor);
-        } else {
-            pivot.rotation.y = targetAngle;
-            window._midDoorOpen = true;
-            window._midDoorAnimating = false;
-            showToast('✅ Porte ouverte !');
         }
+
+        canvas.addEventListener('click', function(event) {
+            if (hoverMidDoor && !window._midDoorOpen && !window._midDoorAnimating) {
+                openMidDoor();
+            }
+        });
+
+        // ============================================================
+//  MONOLOGUE STYLE VISUAL NOVEL – MYSTÉRIEUX & ÉPURÉ
+// ============================================================
+function showMonologue() {
+    const container = document.createElement('div');
+    container.id = 'monologueContainer';
+    container.style.cssText = `
+        position: fixed;
+        bottom: 100px;
+        left: 40px;
+        right: 40px;
+        max-width: 580px;
+        z-index: 1000;
+        font-family: 'Georgia', serif;
+        color: rgba(255, 255, 255, 0.92);
+        pointer-events: none;
+        user-select: none;
+        opacity: 0;
+        transition: opacity 0.8s ease;
+    `;
+
+    const textBox = document.createElement('div');
+    textBox.id = 'monologueText';
+    textBox.style.cssText = `
+        font-size: 20px;
+        line-height: 1.9;
+        letter-spacing: 0.4px;
+        color: rgba(255, 255, 255, 0.88);
+        text-shadow: 0 2px 30px rgba(0, 0, 0, 0.8);
+        min-height: 70px;
+        padding: 6px 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-weight: 300;
+        pointer-events: none;
+    `;
+    container.appendChild(textBox);
+
+    const btnContainer = document.createElement('div');
+    btnContainer.id = 'monologueBtns';
+    btnContainer.style.cssText = `
+        display: none;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 22px;
+        pointer-events: auto;
+        align-items: flex-start;
+    `;
+
+    // Bouton YES
+    const yesBtn = document.createElement('button');
+    yesBtn.textContent = 'Yes';
+    yesBtn.style.cssText = `
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        padding: 4px 0;
+        font-size: 18px;
+        font-family: 'Georgia', serif;
+        cursor: pointer;
+        transition: all 0.4s ease;
+        letter-spacing: 0.8px;
+        font-weight: 300;
+        pointer-events: auto;
+        text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
+    `;
+    yesBtn.onmouseover = () => {
+        yesBtn.style.color = 'rgba(255, 120, 120, 0.9)';
+        yesBtn.style.transform = 'translateX(6px)';
+    };
+    yesBtn.onmouseout = () => {
+        yesBtn.style.color = 'rgba(255, 255, 255, 0.5)';
+        yesBtn.style.transform = 'translateX(0)';
+    };
+    yesBtn.onclick = () => {
+        showResponse('So... you will join the eternal night.', true);
+    };
+
+    // Bouton NO
+    const noBtn = document.createElement('button');
+    noBtn.textContent = 'No';
+    noBtn.style.cssText = `
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        padding: 4px 0;
+        font-size: 18px;
+        font-family: 'Georgia', serif;
+        cursor: pointer;
+        transition: all 0.4s ease;
+        letter-spacing: 0.8px;
+        font-weight: 300;
+        pointer-events: auto;
+        text-shadow: 0 2px 20px rgba(0, 0, 0, 0.6);
+    `;
+    noBtn.onmouseover = () => {
+        noBtn.style.color = 'rgba(120, 180, 255, 0.9)';
+        noBtn.style.transform = 'translateX(6px)';
+    };
+    noBtn.onmouseout = () => {
+        noBtn.style.color = 'rgba(255, 255, 255, 0.5)';
+        noBtn.style.transform = 'translateX(0)';
+    };
+    noBtn.onclick = () => {
+        showResponse('Staying in this illusion won\'t bring you peace.', false);
+    };
+
+    btnContainer.appendChild(yesBtn);
+    btnContainer.appendChild(noBtn);
+    container.appendChild(btnContainer);
+    document.body.appendChild(container);
+
+    // --- Fonction d'affichage lettre par lettre ---
+    function typeText(text, callback) {
+        const el = document.getElementById('monologueText');
+        el.textContent = '';
+        let index = 0;
+        const speed = 35;
+
+        function typeChar() {
+            if (index < text.length) {
+                el.textContent += text.charAt(index);
+                index++;
+                setTimeout(typeChar, speed);
+            } else if (callback) {
+                callback();
+            }
+        }
+        typeChar();
     }
-    requestAnimationFrame(animateMidDoor);
+
+    // --- Fonction de réponse ---
+    function showResponse(text, redirect) {
+        const textEl = document.getElementById('monologueText');
+        const btns = document.getElementById('monologueBtns');
+        btns.style.display = 'none';
+        textEl.textContent = '';
+        let index = 0;
+        const speed = 35;
+
+        function typeResponse() {
+            if (index < text.length) {
+                textEl.textContent += text.charAt(index);
+                index++;
+                setTimeout(typeResponse, speed);
+            } else if (redirect) {
+                setTimeout(() => {
+                    window.location.href = 'https://pioupioucoder.github.io/EternalNight/';
+                }, 2200);
+            } else {
+                setTimeout(() => {
+                    const c = document.getElementById('monologueContainer');
+                    if (c) {
+                        c.style.opacity = '0';
+                        setTimeout(() => {
+                            c.remove();
+                            window._doorOpen = false;
+                            window._doorAnimating = false;
+                        }, 800);
+                    }
+                }, 3000);
+            }
+        }
+        typeResponse();
+    }
+
+    // --- Lancement ---
+    setTimeout(() => {
+        const c = document.getElementById('monologueContainer');
+        if (c) c.style.opacity = '1';
+        typeText('Do you wish to leave this illusion?', () => {
+            const btns = document.getElementById('monologueBtns');
+            btns.style.display = 'flex';
+            btns.style.opacity = '0';
+            setTimeout(() => {
+                btns.style.transition = 'opacity 0.8s ease';
+                btns.style.opacity = '1';
+            }, 100);
+        });
+    }, 400);
 }
-        // ─── Contrôles ──────────────────────────────────────────────────
-        let mdown = false,
-            lmx = 0,
-            lmy = 0;
-        const keys = {};
-
-        document.addEventListener('keydown', function(e) {
-            keys[e.key.toLowerCase()] = true;
-            if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].indexOf(e.key.toLowerCase()) !== -1) e
-                .preventDefault();
-        });
-        document.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; });
-
-        canvas.addEventListener('mousedown', function(e) { mdown = true;
-            lmx = e.clientX;
-            lmy = e.clientY;
-            canvas.style.cursor = 'grabbing'; });
-        document.addEventListener('mouseup', function() { mdown = false;
-            canvas.style.cursor = 'default'; });
-        document.addEventListener('mousemove', function(e) {
-            if (!mdown) return;
-            camYaw -= (e.clientX - lmx) * 0.004;
-            camPitch -= (e.clientY - lmy) * 0.003;
-            camPitch = Math.max(-0.5, Math.min(0.6, camPitch));
-            lmx = e.clientX;
-            lmy = e.clientY;
-        });
-
-        // ─── Raycaster pour la porte ──────────────────────────────────
+        // ============================================================
+        //  PORTE EXTÉRIEURE (vers EternalNight)
+        // ============================================================
         const raycasterDoor = new THREE.Raycaster();
         const mouseDoor = new THREE.Vector2();
         let hoverDoor = false;
@@ -2294,7 +2457,6 @@ function openMidDoor() {
             const rect = canvas.getBoundingClientRect();
             mouseDoor.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
             mouseDoor.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
             raycasterDoor.setFromCamera(mouseDoor, camera);
             const pivot = window._doorPivot;
             if (!pivot) return;
@@ -2306,7 +2468,6 @@ function openMidDoor() {
                 }
             });
             const intersects = raycasterDoor.intersectObjects(meshes);
-
             if (intersects.length > 0) {
                 canvas.style.cursor = 'pointer';
                 if (!doorHighlighted && !window._doorOpen) {
@@ -2323,46 +2484,39 @@ function openMidDoor() {
                 hoverDoor = false;
             }
         }
-
         canvas.addEventListener('mousemove', updateDoorInteraction);
 
-        canvas.addEventListener('click', function(event) {
-            if (!hoverDoor || window._doorOpen || window._doorAnimating) return;
-            openDoor();
-        });
+        
+     // ─── Contrôles ──────────────────────────────────────────────────
+let mdown = false, lmx = 0, lmy = 0;
+const keys = {};
 
-        function openDoor() {
-            if (window._doorOpen || window._doorAnimating) return;
-            window._doorAnimating = true;
-            showToast('🚪 La porte s\'ouvre...');
+document.addEventListener('keydown', function(e) {
+    keys[e.key.toLowerCase()] = true;
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].indexOf(e.key.toLowerCase()) !== -1) e.preventDefault();
+});
+document.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; });
 
-            const pivot = window._doorPivot;
-            const targetAngle = -Math.PI / 2;
-            const duration = 800;
-            const startTime = performance.now();
-            const startRot = 0;
+canvas.addEventListener('mousedown', function(e) {
+    mdown = true;
+    lmx = e.clientX;
+    lmy = e.clientY;
+    canvas.style.cursor = 'grabbing';
+});
+document.addEventListener('mouseup', function() {
+    mdown = false;
+    canvas.style.cursor = 'default';
+});
+document.addEventListener('mousemove', function(e) {
+    if (!mdown) return;
+    camYaw -= (e.clientX - lmx) * 0.004;
+    camPitch -= (e.clientY - lmy) * 0.003;
+    camPitch = Math.max(-0.5, Math.min(0.6, camPitch));
+    lmx = e.clientX;
+    lmy = e.clientY;
+});
 
-            function animateDoor(time) {
-                const elapsed = time - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
-                const currentAngle = startRot + (targetAngle - startRot) * eased;
-                pivot.rotation.y = currentAngle;
-
-                if (progress < 1) {
-                    requestAnimationFrame(animateDoor);
-                } else {
-                    pivot.rotation.y = targetAngle;
-                    window._doorOpen = true;
-                    window._doorAnimating = false;
-                    setTimeout(function() {
-                        window.location.href = 'corridor.html';
-                    }, 500);
-                }
-            }
-            requestAnimationFrame(animateDoor);
-        }
-
+// ─── Joysticks ──────────────────────────────────────────────────
         // ─── Joysticks ──────────────────────────────────────────────────
         let jLx = 0,
             jLy = 0,
