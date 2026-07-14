@@ -1,0 +1,16 @@
+{
+    "pages": [
+        {
+            "numero": 1,
+            "contenu": "blabla"
+        },
+        {
+            "numero": 2,
+            "contenu": "Page 2. Tu peux écrire le texte que tu veux ici."
+        },
+        {
+            "numero": 3,
+            "contenu": "Page 3. Le site affichera ces pages dans le livre."
+        }
+    ]
+}
