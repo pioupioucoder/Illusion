@@ -256,7 +256,9 @@ floorTexCorridor.repeat.set(6, 6); // ajuste selon la taille de la moitié
         woodTex.repeat.set(4, 4);
 
         // ─── Matériaux ──────────────────────────────────────────────────
+        
         const mWall = new THREE.MeshLambertMaterial({ map: stoneTex, color: 0xddd0b8 });
+        const mWallCorridor = new THREE.MeshLambertMaterial({ map: stoneTex, color: 0x9a6858 });
         const mFloor = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x6a5848 });
         const mWood = new THREE.MeshLambertMaterial({ map: woodTex, color: 0x7a5a38 });
         const mGlass = new THREE.MeshLambertMaterial({ color: 0x88bbdd, transparent: true, opacity: 0.2, side: THREE
@@ -326,10 +328,18 @@ floorRight.rotation.x = -Math.PI / 2;
 floorRight.position.set(0, -0.01, halfDepth/2);
 floorRight.receiveShadow = true;
 scene.add(floorRight);
-        // ─── Murs (sauf avant) ──────────────────────────────────────
-        plane(ROOM_W, WALL_H, mWall, 0, WALL_H / 2, -ROOM_D / 2, 0, 0);
-        plane(ROOM_D, WALL_H, mWall, -ROOM_W / 2, WALL_H / 2, 0, 0, Math.PI / 2);
-        plane(ROOM_D, WALL_H, mWall, ROOM_W / 2, WALL_H / 2, 0, 0, -Math.PI / 2);
+       // ─── Murs extérieurs (divisés en deux selon Z) ──────────────
+// 1. Mur du fond (Z = -ROOM_D/2) → entièrement côté lit → style corridor
+plane(ROOM_W, WALL_H, mWallCorridor, 0, WALL_H / 2, -ROOM_D / 2, 0, 0);
+
+// 2. Mur gauche (X = -ROOM_W/2) → moitié Z<0 (corridor), moitié Z>0 (beige)
+plane(ROOM_D / 2, WALL_H, mWallCorridor, -ROOM_W / 2, WALL_H / 2, -ROOM_D / 4, 0, Math.PI / 2);
+plane(ROOM_D / 2, WALL_H, mWall, -ROOM_W / 2, WALL_H / 2, ROOM_D / 4, 0, Math.PI / 2);
+
+// 3. Mur droit (X = ROOM_W/2) → moitié Z<0 (corridor), moitié Z>0 (beige)
+plane(ROOM_D / 2, WALL_H, mWallCorridor, ROOM_W / 2, WALL_H / 2, -ROOM_D / 4, 0, -Math.PI / 2);
+plane(ROOM_D / 2, WALL_H, mWall, ROOM_W / 2, WALL_H / 2, ROOM_D / 4, 0, -Math.PI / 2);
+
 // ═══════════════════════════════════════════════════════════════
 //  MUR CENTRAL – PORTE INTÉRIEURE (version minimaliste)
 // ═══════════════════════════════════════════════════════════════
