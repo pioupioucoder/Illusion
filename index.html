@@ -284,72 +284,79 @@ if (fromCorridor) {
         plane(ROOM_W, WALL_H, mWall, 0, WALL_H / 2, -ROOM_D / 2, 0, 0);
         plane(ROOM_D, WALL_H, mWall, -ROOM_W / 2, WALL_H / 2, 0, 0, Math.PI / 2);
         plane(ROOM_D, WALL_H, mWall, ROOM_W / 2, WALL_H / 2, 0, 0, -Math.PI / 2);
-
-       // ═══════════════════════════════════════════════════════════════
-//  MUR CENTRAL (Z=0) AVEC PORTE INTERACTIVE
 // ═══════════════════════════════════════════════════════════════
-
+//  MUR CENTRAL SOLIDE (épaisseur 0.3) AVEC OUVERTURE DE PORTE
+// ═══════════════════════════════════════════════════════════════
 (function() {
-    const doorW = 1.2, doorH = 2.2;
-    const doorZ = 0;
-    const doorX = 0;  // centré
+    const doorW = 1.2;   // largeur de la porte
+    const doorH = 2.2;   // hauteur de la porte
+    const doorZ = 0;     // position en Z (0 = milieu)
+    const doorX = 0;     // centré en X
 
-    // ── 1. Matériau du mur (double face pour voir des deux côtés) ──
-    const midWallMat = new THREE.MeshLambertMaterial({
+    const wallThick = 0.3; // ÉPAISSEUR du mur (solide)
+    const wallMat = new THREE.MeshLambertMaterial({
         map: stoneTex,
         color: 0xddd0b8,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide // pour voir des deux côtés
     });
 
-    // ── 2. Découpage du mur en 4 blocs autour de la porte ──────────
-    const wallThick = 0.05;
-
-    // Bloc gauche (X < -doorW/2)
-    const leftW = -doorW/2 - (-ROOM_W/2);
+    // ── 1. Bloc gauche (X < -doorW/2) ──────────────────────────
+    const leftW = (-doorW/2) - (-ROOM_W/2);
     if (leftW > 0.01) {
         const leftBlock = new THREE.Mesh(
             new THREE.BoxGeometry(leftW, WALL_H, wallThick),
-            midWallMat
+            wallMat
         );
-        leftBlock.position.set((-ROOM_W/2 + (-doorW/2)) / 2, WALL_H/2, doorZ);
+        leftBlock.position.set(
+            (-ROOM_W/2 + (-doorW/2)) / 2,
+            WALL_H / 2,
+            doorZ
+        );
         leftBlock.castShadow = true;
         leftBlock.receiveShadow = true;
         scene.add(leftBlock);
     }
 
-    // Bloc droite (X > doorW/2)
+    // ── 2. Bloc droite (X > doorW/2) ──────────────────────────
     const rightW = ROOM_W/2 - doorW/2;
     if (rightW > 0.01) {
         const rightBlock = new THREE.Mesh(
             new THREE.BoxGeometry(rightW, WALL_H, wallThick),
-            midWallMat
+            wallMat
         );
-        rightBlock.position.set((doorW/2 + ROOM_W/2) / 2, WALL_H/2, doorZ);
+        rightBlock.position.set(
+            (doorW/2 + ROOM_W/2) / 2,
+            WALL_H / 2,
+            doorZ
+        );
         rightBlock.castShadow = true;
         rightBlock.receiveShadow = true;
         scene.add(rightBlock);
     }
 
-    // Bloc au-dessus (Y > doorH)
+    // ── 3. Bloc au‑dessus de la porte ──────────────────────────
     const topH = WALL_H - doorH;
     if (topH > 0.01) {
         const topBlock = new THREE.Mesh(
-            new THREE.BoxGeometry(doorW * 1.4, topH, wallThick),
-            midWallMat
+            new THREE.BoxGeometry(doorW * 1.6, topH, wallThick),
+            wallMat
         );
-        topBlock.position.set(doorX, (doorH + WALL_H) / 2, doorZ);
+        topBlock.position.set(
+            doorX,
+            (doorH + WALL_H) / 2,
+            doorZ
+        );
         topBlock.castShadow = true;
         topBlock.receiveShadow = true;
         scene.add(topBlock);
     }
 
-    // ── 3. Cadre de la porte ──────────────────────────────────────
-    const frameMatMid = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
-
+    // ── 4. Cadre de la porte (décoratif) ──────────────────────
+    const frameMat = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
     // Montant gauche
     const leftFrame = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, doorH, 0.08),
-        frameMatMid
+        new THREE.BoxGeometry(0.08, doorH, 0.12),
+        frameMat
     );
     leftFrame.position.set(-doorW/2 - 0.04, doorH/2, doorZ);
     leftFrame.castShadow = true;
@@ -357,8 +364,8 @@ if (fromCorridor) {
 
     // Montant droit
     const rightFrame = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, doorH, 0.08),
-        frameMatMid
+        new THREE.BoxGeometry(0.08, doorH, 0.12),
+        frameMat
     );
     rightFrame.position.set(doorW/2 + 0.04, doorH/2, doorZ);
     rightFrame.castShadow = true;
@@ -366,14 +373,14 @@ if (fromCorridor) {
 
     // Traverse haute
     const topFrame = new THREE.Mesh(
-        new THREE.BoxGeometry(doorW + 0.16, 0.08, 0.08),
-        frameMatMid
+        new THREE.BoxGeometry(doorW + 0.16, 0.08, 0.12),
+        frameMat
     );
     topFrame.position.set(doorX, doorH + 0.04, doorZ);
     topFrame.castShadow = true;
     scene.add(topFrame);
 
-    // ── 4. Porte interactive (charnière à gauche) ──────────────
+    // ── 5. Porte interactive (charnière à gauche) ──────────────
     const pivotMid = new THREE.Group();
     pivotMid.position.set(-doorW/2, doorH/2, doorZ);
     scene.add(pivotMid);
@@ -381,7 +388,6 @@ if (fromCorridor) {
     const doorGroupMid = new THREE.Group();
     doorGroupMid.position.set(doorW/2, 0, 0);
 
-    // Vantail
     const doorMeshMid = new THREE.Mesh(
         new THREE.BoxGeometry(doorW, doorH, 0.04),
         mDoor
@@ -391,7 +397,7 @@ if (fromCorridor) {
     doorMeshMid.receiveShadow = true;
     doorGroupMid.add(doorMeshMid);
 
-    // Poignée (identique à l'autre porte)
+    // Poignée
     const handleMid = new THREE.Mesh(
         new THREE.SphereGeometry(0.06, 8, 6),
         mHandle
@@ -419,7 +425,6 @@ if (fromCorridor) {
 
     pivotMid.add(doorGroupMid);
 
-    // ── 5. Variables globales pour cette porte ──────────────────
     window._midDoorPivot = pivotMid;
     window._midDoorGroup = doorGroupMid;
     window._midDoorMesh = doorMeshMid;
@@ -428,7 +433,7 @@ if (fromCorridor) {
     window._midDoorOpen = false;
     window._midDoorAnimating = false;
 
-    // ── 6. Lumière au-dessus de la porte ────────────────────────
+    // ── 6. Lumière au‑dessus ──────────────────────────────────
     const midLight = new THREE.PointLight(0xff8844, 0.3, 4);
     midLight.position.set(0, doorH + 0.6, doorZ + 0.5);
     scene.add(midLight);
@@ -439,6 +444,15 @@ if (fromCorridor) {
     midGlow.position.copy(midLight.position);
     scene.add(midGlow);
 
+    // ── 7. On stocke les limites pour la collision ─────────────
+    window._midWallLimits = {
+        minX: -ROOM_W/2,
+        maxX: ROOM_W/2,
+        doorMinX: -doorW/2,
+        doorMaxX: doorW/2,
+        doorZ: doorZ,
+        thickness: wallThick
+    };
 })();
 canvas.addEventListener('click', function(event) {
     // Porte extérieure : on affiche le monologue sans ouvrir la porte
@@ -2683,7 +2697,33 @@ function loop(time) {
     var cos = Math.cos(camYaw), sin = Math.sin(camYaw);
     camera.position.x += (-fx * cos + fz * sin) * SPEED * dt;
     camera.position.z += (fx * sin + fz * cos) * SPEED * dt;
+// ─── COLLISION AVEC LE MUR CENTRAL (solide) ──────────────────
+const limits = window._midWallLimits;
+if (limits) {
+    const halfWall = limits.thickness / 2 + 0.05; // 0.15 + 0.05 = marge
+    const inXRange = camera.position.x >= limits.minX && camera.position.x <= limits.maxX;
+    const inDoorX = camera.position.x >= limits.doorMinX && camera.position.x <= limits.doorMaxX;
+    const isDoorOpen = window._midDoorOpen || false;
 
+    if (inXRange) {
+        // Si on est dans la zone de la porte ET la porte est ouverte → on autorise le passage
+        if (inDoorX && isDoorOpen) {
+            // Pas de blocage
+        } else {
+            // On bloque le franchissement du mur
+            if (camera.position.z > -halfWall && camera.position.z < halfWall) {
+                // On repousse le joueur du côté où il se trouve
+                if (camera.position.z > 0) {
+                    camera.position.z = halfWall;
+                } else {
+                    camera.position.z = -halfWall;
+                }
+            }
+        }
+    }
+}
+
+var margin = 0.8;
     var margin = 0.8;
     camera.position.x = Math.max(-ROOM_W / 2 + margin, Math.min(ROOM_W / 2 - margin, camera.position.x));
     camera.position.z = Math.max(-ROOM_D / 2 + margin, Math.min(ROOM_D / 2 - margin, camera.position.z));
