@@ -1467,31 +1467,39 @@ function createCardboardBox() {
     intRight.rotation.y = Math.PI/2;
     group.add(intRight);
 
-    // ── 4. RABAT UNIQUE SUR LA LONGUEUR (pivot sur le bord avant) ──
-    // Le rabat couvre toute la largeur et la moitié de la longueur
-    // Pivot sur le bord avant (Z = boxD/2)
-    const pivotR = new THREE.Group();
-    pivotR.position.set(0, boxH/2, boxD/2); // bord avant, en haut
-    group.add(pivotR);
+   // ── 4. DEUX RABATS (avant et arrière) ──────────────────────
+// Rabat avant (existant) – pivot sur le bord avant (Z = boxD/2)
+const pivotFront = new THREE.Group();
+pivotFront.position.set(0, boxH/2, boxD/2);
+group.add(pivotFront);
+const flapFront = new THREE.Mesh(new THREE.BoxGeometry(boxW, thick, boxD/2), extMat);
+flapFront.position.set(0, 0, -boxD/4);
+flapFront.castShadow = true; flapFront.receiveShadow = true;
+pivotFront.add(flapFront);
+const intFlapFront = new THREE.Mesh(new THREE.PlaneGeometry(boxW - thick*2, boxD/2 - thick*2), intMat);
+intFlapFront.position.set(0, -thick/2 - 0.001, -boxD/4);
+intFlapFront.rotation.x = -Math.PI/2;
+pivotFront.add(intFlapFront);
 
-    // Le rabat est un rectangle de dimensions (boxW, thick, boxD/2)
-    // Il est positionné en Z négatif par rapport au pivot pour que son bord avant coïncide avec le pivot
-    const flapR = new THREE.Mesh(new THREE.BoxGeometry(boxW, thick, boxD/2), extMat);
-    flapR.position.set(0, 0, -boxD/4); // centré en X, décalé en Z pour que le bord avant soit à l'origine
-    flapR.castShadow = true; flapR.receiveShadow = true;
-    pivotR.add(flapR);
-    // Intérieur du rabat
-    const intFlapR = new THREE.Mesh(new THREE.PlaneGeometry(boxW - thick*2, boxD/2 - thick*2), intMat);
-    intFlapR.position.set(0, -thick/2 - 0.001, -boxD/4);
-    intFlapR.rotation.x = -Math.PI/2;
-    pivotR.add(intFlapR);
+// Rabat arrière (nouveau) – pivot sur le bord arrière (Z = -boxD/2)
+const pivotBack = new THREE.Group();
+pivotBack.position.set(0, boxH/2, -boxD/2);
+group.add(pivotBack);
+const flapBack = new THREE.Mesh(new THREE.BoxGeometry(boxW, thick, boxD/2), extMat);
+flapBack.position.set(0, 0, boxD/4); // décalé vers l'extérieur arrière
+flapBack.castShadow = true; flapBack.receiveShadow = true;
+pivotBack.add(flapBack);
+const intFlapBack = new THREE.Mesh(new THREE.PlaneGeometry(boxW - thick*2, boxD/2 - thick*2), intMat);
+intFlapBack.position.set(0, -thick/2 - 0.001, boxD/4);
+intFlapBack.rotation.x = -Math.PI/2;
+pivotBack.add(intFlapBack);
 
-    // ── 5. STOCKAGE ──────────────────────────────────────────────
-    window._cartonRabats = [
-        { pivot: pivotR, mesh: flapR, open: false, targetAngle: 0, animating: false }
-    ];
-    window._cartonMaterials = { woodMat: extMat, woodHiMat: hiMat };
-
+// ── 5. STOCKAGE (les deux rabats) ──────────────────────────────
+window._cartonRabats = [
+    { pivot: pivotFront, mesh: flapFront, open: false, targetAngle: 0, animating: false },
+    { pivot: pivotBack,  mesh: flapBack,  open: false, targetAngle: 0, animating: false }
+];
+window._cartonMaterials = { woodMat: extMat, woodHiMat: hiMat };
     // ── 6. POSITION ──────────────────────────────────────────────
     group.position.set(-3.79, 0.0, 6.19);
     group.rotation.y = 0.0;
@@ -1544,7 +1552,7 @@ function createCardboardBox() {
                 if (r.animating) return;
 
                 r.open = !r.open;
-                r.targetAngle = r.open ? Math.PI : 0;
+                r.targetAngle = r.open ? (r.pivot.position.z > 0 ? Math.PI : -Math.PI) : 0;
                 r.animating = true;
                 const startAngle = r.pivot.rotation.x;
                 const targetAngle = r.targetAngle;
