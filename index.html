@@ -2279,12 +2279,11 @@ function handleKnobAction(action) {
     }
     requestAnimationFrame(animateMidDoor);
 }
-        canvas.addEventListener('click', function(event) {
-            if (hoverMidDoor && !window._midDoorOpen && !window._midDoorAnimating) {
-                openMidDoor();
-            }
-        });
-
+       canvas.addEventListener('click', function(event) {
+    if (hoverMidDoor && !window._midDoorAnimating) {
+        openMidDoor();
+    }
+});
         // ============================================================
 //  MONOLOGUE STYLE VISUAL NOVEL – MYSTÉRIEUX & ÉPURÉ
 // ============================================================
