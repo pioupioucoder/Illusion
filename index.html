@@ -105,8 +105,7 @@
         const scene = new THREE.Scene();
         scene.fog = new THREE.Fog(0x1a1410, 20, 50);
 
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 70), 0.1, 60);
-
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 70), 0.01, 60);
         // ─── DÉTECTION PROVENANCE ──────────────────────────────────────
         const urlParams = new URLSearchParams(window.location.search);
         const fromCorridor = urlParams.get('from') === 'corridor';
@@ -1165,7 +1164,15 @@
                 return 'videos/thethingsthatiwoulddo.mp4';
             }
         }
-
+        // ─── DÉTECTION DU CHEMIN (local vs en ligne) pour les images ───
+function getImagePath(filename) {
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return '/projet/Illusion/images/' + filename;
+    } else {
+        return 'images/' + filename;
+    }
+}
         function createIconTexture(symbol) {
             const canvas = document.createElement('canvas');
             canvas.width = 64; canvas.height = 64;
@@ -1388,7 +1395,7 @@
         // ─── CARTON AVEC 1 RABAT SUR LA LONGUEUR (pivot sur le bord) ──
 function createCardboardBox() {
     const group = new THREE.Group();
-    const boxW = 1.2, boxH = 0.7, boxD = 0.9; // longueur = profondeur (Z)
+    const boxW = 1.2, boxH = 0.7, boxD = 0.9;
     const thick = 0.025;
 
     // ── Texture carton ──────────────────────────────────────────
@@ -1467,129 +1474,513 @@ function createCardboardBox() {
     intRight.rotation.y = Math.PI/2;
     group.add(intRight);
 
-   // ── 4. DEUX RABATS (avant et arrière) ──────────────────────
-// Rabat avant (existant) – pivot sur le bord avant (Z = boxD/2)
-const pivotFront = new THREE.Group();
-pivotFront.position.set(0, boxH/2, boxD/2);
-group.add(pivotFront);
-const flapFront = new THREE.Mesh(new THREE.BoxGeometry(boxW, thick, boxD/2), extMat);
-flapFront.position.set(0, 0, -boxD/4);
-flapFront.castShadow = true; flapFront.receiveShadow = true;
-pivotFront.add(flapFront);
-const intFlapFront = new THREE.Mesh(new THREE.PlaneGeometry(boxW - thick*2, boxD/2 - thick*2), intMat);
-intFlapFront.position.set(0, -thick/2 - 0.001, -boxD/4);
-intFlapFront.rotation.x = -Math.PI/2;
-pivotFront.add(intFlapFront);
+    // ── 4. RABAT AVANT ──────────────────────────────────────────
+    const pivotFront = new THREE.Group();
+    pivotFront.position.set(0, boxH/2, boxD/2);
+    group.add(pivotFront);
+    const flapFront = new THREE.Mesh(new THREE.BoxGeometry(boxW, thick, boxD/2), extMat);
+    flapFront.position.set(0, 0, -boxD/4);
+    flapFront.castShadow = true; flapFront.receiveShadow = true;
+    pivotFront.add(flapFront);
+    const intFlapFront = new THREE.Mesh(new THREE.PlaneGeometry(boxW - thick*2, boxD/2 - thick*2), intMat);
+    intFlapFront.position.set(0, -thick/2 - 0.001, -boxD/4);
+    intFlapFront.rotation.x = -Math.PI/2;
+    pivotFront.add(intFlapFront);
 
-// Rabat arrière (nouveau) – pivot sur le bord arrière (Z = -boxD/2)
-const pivotBack = new THREE.Group();
-pivotBack.position.set(0, boxH/2, -boxD/2);
-group.add(pivotBack);
-const flapBack = new THREE.Mesh(new THREE.BoxGeometry(boxW, thick, boxD/2), extMat);
-flapBack.position.set(0, 0, boxD/4); // décalé vers l'extérieur arrière
-flapBack.castShadow = true; flapBack.receiveShadow = true;
-pivotBack.add(flapBack);
-const intFlapBack = new THREE.Mesh(new THREE.PlaneGeometry(boxW - thick*2, boxD/2 - thick*2), intMat);
-intFlapBack.position.set(0, -thick/2 - 0.001, boxD/4);
-intFlapBack.rotation.x = -Math.PI/2;
-pivotBack.add(intFlapBack);
+    // ── 5. RABAT ARRIÈRE (sans image) ──────────────────────────
+    const pivotBack = new THREE.Group();
+    pivotBack.position.set(0, boxH/2, -boxD/2);
+    group.add(pivotBack);
 
-// ── 5. STOCKAGE (les deux rabats) ──────────────────────────────
-window._cartonRabats = [
-    { pivot: pivotFront, mesh: flapFront, open: false, targetAngle: 0, animating: false },
-    { pivot: pivotBack,  mesh: flapBack,  open: false, targetAngle: 0, animating: false }
-];
-window._cartonMaterials = { woodMat: extMat, woodHiMat: hiMat };
-    // ── 6. POSITION ──────────────────────────────────────────────
+    const flapBack = new THREE.Mesh(new THREE.BoxGeometry(boxW, thick, boxD/2), extMat);
+    flapBack.position.set(0, 0, boxD/4);
+    flapBack.castShadow = true; flapBack.receiveShadow = true;
+    pivotBack.add(flapBack);
+
+    const intFlapBack = new THREE.Mesh(new THREE.PlaneGeometry(boxW - thick*2, boxD/2 - thick*2), intMat);
+    intFlapBack.position.set(0, -thick/2 - 0.001, boxD/4);
+    intFlapBack.rotation.x = -Math.PI/2;
+    pivotBack.add(intFlapBack);
+
+    // ── 6. STOCKAGE ──────────────────────────────────────────────
+    window._cartonRabats = [
+        {
+            pivot: pivotFront,
+            mesh: flapFront,
+            open: false,
+            targetAngle: 0,
+            animating: false,
+            originalMat: extMat,
+            hiMat: new THREE.MeshStandardMaterial({ map: extMat.map, color: 0xddbb99, emissive: 0x553322, emissiveIntensity: 0.2 })
+        },
+        {
+            pivot: pivotBack,
+            mesh: flapBack,
+            open: false,
+            targetAngle: 0,
+            animating: false,
+            originalMat: extMat,
+            hiMat: new THREE.MeshStandardMaterial({ map: extMat.map, color: 0xddbb99, emissive: 0x553322, emissiveIntensity: 0.2 })
+        }
+    ];
+    window._cartonMaterials = { woodMat: extMat, woodHiMat: hiMat };
+
+    // ── 7. POSITION ──────────────────────────────────────────────
     group.position.set(-5, 0.35, 7);
     group.rotation.y = 0.0;
     scene.add(group);
 
-// ── 7. STOCKAGE POUR LA COLLISION ──────────────────────────────
-window._cartonCollision = {
-    group: group,
-    halfW: boxW / 2,
-    halfH: boxH / 2,
-    halfD: boxD / 2,
-    center: group.position.clone() // utilise la position du groupe
-};console.log('📦 Carton avec 1 rabat (pivot sur le bord)');
+    // ── 8. COLLISION ──────────────────────────────────────────────
+    window._cartonCollision = {
+        group: group,
+        halfW: boxW / 2,
+        halfH: boxH / 2,
+        halfD: boxD / 2,
+        center: group.position.clone()
+    };
+
+    console.log('📦 Carton sans image');
     return group;
 }
-        // ─── INTERACTIONS DES RABATS ──────────────────────────────────
-        function setupCartonInteractions() {
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-            let hoveredRabat = null;
-            const mats = window._cartonMaterials || { woodMat: new THREE.MeshStandardMaterial(), woodHiMat: new THREE.MeshStandardMaterial() };
+function createDiskDrive() {
+    const group = new THREE.Group();
+    const driveW = 0.5, driveH = 0.25, driveD = 0.4;
+    const thick = 0.02;
 
-            function onMouseMove(event) {
-                const rect = canvas.getBoundingClientRect();
-                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-                raycaster.setFromCamera(mouse, camera);
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x8899aa, metalness: 0.7, roughness: 0.3 });
+    const plasticMat = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.5 });
+    const buttonMat = new THREE.MeshStandardMaterial({ color: 0xcc3333, emissive: 0x440000, emissiveIntensity: 0.2 });
+    const slotMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
 
-                const rabats = window._cartonRabats || [];
-                const meshes = rabats.map(r => r.mesh);
-                const intersects = raycaster.intersectObjects(meshes);
-                let newHover = null;
-                if (intersects.length > 0) {
-                    const hit = intersects[0].object;
-                    for (let r of rabats) {
-                        if (r.mesh === hit) { newHover = r; break; }
-                    }
-                }
+    // Boîtier
+    const body = new THREE.Mesh(new THREE.BoxGeometry(driveW, driveH, driveD), metalMat);
+    body.position.set(0, driveH/2, 0);
+    body.castShadow = true; body.receiveShadow = true;
+    group.add(body);
 
-                if (newHover !== hoveredRabat) {
-                    if (hoveredRabat && !hoveredRabat.open) {
-                        hoveredRabat.mesh.material = mats.woodMat;
-                    }
-                    if (newHover && !newHover.open) {
-                        newHover.mesh.material = mats.woodHiMat;
-                        canvas.style.cursor = 'pointer';
-                    } else {
-                        canvas.style.cursor = 'default';
-                    }
-                    hoveredRabat = newHover;
+    // Face avant (plastique)
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(driveW*0.9, driveH*0.8), plasticMat);
+    face.position.set(0, driveH/2, driveD/2 + 0.001);
+    group.add(face);
+
+    // Fente d’insertion
+    const slot = new THREE.Mesh(new THREE.PlaneGeometry(driveW*0.5, 0.04), slotMat);
+    slot.position.set(0, driveH/2 + 0.02, driveD/2 + 0.002);
+    group.add(slot);
+
+    // Bouton d’éjection
+    const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.025, 8), buttonMat);
+    btn.rotation.x = Math.PI / 2;
+    btn.position.set(0.16, driveH/2 - 0.04, driveD/2 + 0.015);
+    btn.userData.isDriveButton = true;
+    group.add(btn);
+
+    // LED
+    const ledMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const led = new THREE.Mesh(new THREE.SphereGeometry(0.015, 6, 6), ledMat);
+    led.position.set(-0.16, driveH/2 - 0.04, driveD/2 + 0.015);
+    group.add(led);
+
+    // Tiroir
+    const trayGroup = new THREE.Group();
+    trayGroup.position.set(0, driveH/2 - 0.01, driveD/2);
+    group.add(trayGroup);
+
+    const trayMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.6 });
+    const tray = new THREE.Mesh(new THREE.BoxGeometry(driveW*0.6, 0.02, 0.12), trayMat);
+    tray.position.set(0, 0, 0);
+    tray.castShadow = true;
+    trayGroup.add(tray);
+
+    const recess = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.14), new THREE.MeshBasicMaterial({ color: 0x222233 }));
+    recess.position.set(0, 0.002, 0.01);
+    trayGroup.add(recess);
+
+    window._diskDrive = {
+        group: group,
+        tray: trayGroup,
+        trayOpen: false,
+        trayAnimating: false,
+        button: btn,
+        insertedDisk: null,
+        diskName: null
+    };
+
+    // ── Position ──────────────────────────────────────────────
+      // ── Position ──────────────────────────────────────────────
+    const posX = -7.7;
+    const posY = 0.0;
+    const posZ = 5.29;
+    group.position.set(posX, posY, posZ);
+    group.rotation.y = Math.PI / 2;
+    scene.add(group);
+
+    // ── CÂBLE SOUPLE (part de l'arrière du lecteur) ──────────
+    // Le lecteur a sa face avant vers -X (bouton, fente).
+    // L'arrière est donc vers +X.
+    // On part du côté +X, en bas du boîtier.
+    const start = new THREE.Vector3(
+        posX -0,   // bien à l'arrière
+        posY + 0.05,   // sort du bas
+        posZ
+    );
+
+    // Arrivée : arrière bas de la télévision
+    const end = new THREE.Vector3(-7.0, 0.2, 7.6);
+
+    // Point de contrôle : très bas pour donner du mou
+    const mid = new THREE.Vector3(
+        (start.x + end.x) / 2,
+        0.02,          // presque au sol
+        (start.z + end.z) / 2 + 0.3
+    );
+
+    const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+    const tubeGeo = new THREE.TubeGeometry(curve, 30, 0.025, 8, false);
+    const cableMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+    const cable = new THREE.Mesh(tubeGeo, cableMat);
+    cable.castShadow = true;
+    scene.add(cable);
+
+    console.log('💾 Lecteur de disquettes vintage');
+    return group;
+}
+// ─── INTERACTIONS DU LECTEUR ──────────────────────────────────
+function setupDriveInteractions() {
+    const drive = window._diskDrive;
+    if (!drive) return;
+
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let hoverButton = false;
+
+    function onMouseMove(event) {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        const btn = drive.button;
+        const intersects = raycaster.intersectObject(btn);
+        if (intersects.length > 0) {
+            canvas.style.cursor = 'pointer';
+            btn.material.color.setHex(0xff6666);
+            hoverButton = true;
+        } else {
+            if (hoverButton) {
+                btn.material.color.setHex(0xcc3333);
+                hoverButton = false;
+                canvas.style.cursor = 'default';
+            }
+        }
+    }
+
+    function onMouseClick(event) {
+        if (!hoverButton) return;
+        const drive = window._diskDrive;
+        if (!drive || drive.trayAnimating) return;
+
+        drive.trayOpen = !drive.trayOpen;
+        drive.trayAnimating = true;
+        const targetZ = drive.trayOpen ? 0.2 : 0;
+        const startZ = drive.tray.position.z;
+        const duration = 400;
+        const startTime = performance.now();
+
+        function animateTray(time) {
+            const elapsed = time - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            drive.tray.position.z = startZ + (targetZ - startZ) * eased;
+            if (progress < 1) {
+                requestAnimationFrame(animateTray);
+            } else {
+                drive.tray.position.z = targetZ;
+                drive.trayAnimating = false;
+                // Si on ferme et qu'une disquette est insérée, charger la vidéo
+                if (!drive.trayOpen && drive.insertedDisk) {
+                    loadVideoForDisk(drive.insertedDisk);
                 }
             }
+        }
+        requestAnimationFrame(animateTray);
+    }
 
-            function onMouseClick(event) {
-                if (!hoveredRabat) return;
-                const r = hoveredRabat;
-                if (r.animating) return;
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('click', onMouseClick);
+}
+// ─── INTERACTIONS AVEC LES DISQUETTES ──────────────────────
+function setupDiskInteractions() {
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let hoveredDisk = null;
 
-                r.open = !r.open;
-                r.targetAngle = r.open ? (r.pivot.position.z > 0 ? Math.PI : -Math.PI) : 0;
-                r.animating = true;
-                const startAngle = r.pivot.rotation.x;
-                const targetAngle = r.targetAngle;
-                const duration = 500;
+    function onMouseMove(event) {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        const disks = window._disks || [];
+        const meshes = disks.map(d => d);
+        const intersects = raycaster.intersectObjects(meshes, true);
+        let newHover = null;
+        if (intersects.length > 0) {
+            let obj = intersects[0].object;
+            while (obj.parent && !obj.userData.isDisk) {
+                obj = obj.parent;
+            }
+            if (obj.userData.isDisk) {
+                newHover = obj;
+            }
+        }
+
+        if (newHover !== hoveredDisk) {
+            if (hoveredDisk) {
+                // Restaurer la couleur
+                const mat = hoveredDisk.children[0]?.material;
+                if (mat) mat.emissiveIntensity = 0;
+            }
+            if (newHover) {
+                const mat = newHover.children[0]?.material;
+                if (mat) mat.emissiveIntensity = 0.3;
+                canvas.style.cursor = 'pointer';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+            hoveredDisk = newHover;
+        }
+    }
+
+    function onMouseClick(event) {
+        if (!hoveredDisk) return;
+        const drive = window._diskDrive;
+        if (!drive) return;
+        if (!drive.trayOpen) {
+            showToast('💾 Ouvrez d\'abord le tiroir du lecteur.');
+            return;
+        }
+        if (drive.insertedDisk) {
+            showToast('💾 Une disquette est déjà insérée.');
+            return;
+        }
+
+        // Insérer la disquette
+        const disk = hoveredDisk;
+        // Retirer la disquette du groupe
+        const parent = disk.parent;
+        if (parent) {
+            parent.remove(disk);
+        }
+        // La placer dans le tiroir
+        const tray = drive.tray;
+        // On clone la disquette pour la mettre dans le tiroir (ou on la déplace)
+        // On va la déplacer
+        const diskPos = disk.position.clone();
+        disk.position.set(0, 0.02, 0.02);
+        disk.rotation.set(0, 0, 0);
+        tray.add(disk);
+        drive.insertedDisk = disk;
+        drive.diskName = disk.userData.diskName;
+
+        showToast('💾 Disquette insérée : ' + disk.userData.diskName);
+
+        // Fermer le tiroir automatiquement après un délai
+        setTimeout(() => {
+            if (drive.trayOpen && !drive.trayAnimating) {
+                drive.trayOpen = false;
+                drive.trayAnimating = true;
+                const targetZ = 0;
+                const startZ = drive.tray.position.z;
+                const duration = 400;
                 const startTime = performance.now();
-
-                function animateRabat(time) {
+                function animateClose(time) {
                     const elapsed = time - startTime;
                     const progress = Math.min(elapsed / duration, 1);
                     const eased = 1 - Math.pow(1 - progress, 3);
-                    r.pivot.rotation.x = startAngle + (targetAngle - startAngle) * eased;
+                    drive.tray.position.z = startZ + (targetZ - startZ) * eased;
                     if (progress < 1) {
-                        requestAnimationFrame(animateRabat);
+                        requestAnimationFrame(animateClose);
                     } else {
-                        r.pivot.rotation.x = targetAngle;
-                        r.animating = false;
-                        if (r.open) {
-                            r.mesh.material = mats.woodMat;
-                        }
-                        if (hoveredRabat === r && !r.open) {
-                            r.mesh.material = mats.woodHiMat;
-                        }
+                        drive.tray.position.z = targetZ;
+                        drive.trayAnimating = false;
+                        // Charger la vidéo
+                        loadVideoForDisk(disk);
                     }
                 }
-                requestAnimationFrame(animateRabat);
+                requestAnimationFrame(animateClose);
             }
+        }, 800);
+    }
 
-            canvas.addEventListener('mousemove', onMouseMove);
-            canvas.addEventListener('click', onMouseClick);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('click', onMouseClick);
+}
+// ─── CRÉATION DES DISQUETTES DANS LE CARTON ──────────────────
+function createFloppyDisks() {
+    const diskNames = ['video1', 'video2', 'video3', 'video4'];
+    const colors = [0x2244aa, 0x44aa22, 0xaa4422, 0xaa44aa];
+    const disks = [];
+
+    // On place les disquettes dans le carton (à l'intérieur, sur le fond)
+    // Le carton est à (-5, 0.35, 7) avec rotation.y=0
+    const cartonPos = new THREE.Vector3(-5, 0.35, 7);
+    const startX = -0.35;
+    const startZ = -0.25;
+    const spacingX = 0.2;
+    const spacingZ = 0.15;
+    const diskGroup = new THREE.Group();
+    diskGroup.position.set(cartonPos.x, cartonPos.y - 0.25, cartonPos.z);
+    diskGroup.rotation.y = 0;
+
+    let index = 0;
+    for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 2; col++) {
+            if (index >= diskNames.length) break;
+            const disk = createFloppyDisk3D(colors[index % colors.length], diskNames[index]);
+            const x = startX + col * spacingX;
+            const z = startZ + row * spacingZ;
+            disk.position.set(x, 0.02, z);
+            disk.rotation.y = (Math.random() - 0.5) * 0.2;
+            disk.userData.diskName = diskNames[index];
+            disk.userData.videoPath = diskNames[index] + '.mp4';
+            disk.userData.isDisk = true;
+            diskGroup.add(disk);
+            disks.push(disk);
+            index++;
         }
+    }
+
+    scene.add(diskGroup);
+    window._disks = disks;
+    window._diskGroup = diskGroup;
+
+    console.log('💾 Disquettes créées dans le carton');
+    return disks;
+}
+
+function createFloppyDisk3D(color, name) {
+    const group = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
+    const labelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.6, roughness: 0.3 });
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.16), bodyMat);
+    body.position.set(0, 0, 0);
+    body.castShadow = true; body.receiveShadow = true;
+    group.add(body);
+
+    const label = new THREE.Mesh(new THREE.PlaneGeometry(0.10, 0.08), labelMat);
+    label.position.set(0, 0.003, 0.081);
+    group.add(label);
+
+    const slider = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.004, 0.035), metalMat);
+    slider.position.set(-0.04, 0.003, 0.081);
+    group.add(slider);
+
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.012, 8), new THREE.MeshBasicMaterial({ color: 0x222222 }));
+    hole.position.set(0.05, 0.003, 0.081);
+    group.add(hole);
+
+    // Texte du nom (optionnel)
+    // On stocke le nom
+    group.userData.diskName = name;
+    return group;
+}
+
+// ─── CHARGEMENT DE LA VIDÉO DANS LA TÉLÉ ────────────────────
+function loadVideoForDisk(disk) {
+    const video = window._video;
+    if (!video) return;
+
+    const videoPath = disk.userData.videoPath || disk.userData.diskName + '.mp4';
+    // Construire le chemin complet
+    const hostname = window.location.hostname;
+    let fullPath;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        fullPath = '/projet/Illusion/videos/' + videoPath;
+    } else {
+        fullPath = 'videos/' + videoPath;
+    }
+
+    video.src = fullPath;
+    video.load();
+    video.play().catch(() => {});
+    showToast('💾 Lecture de ' + disk.userData.diskName);
+}
+      function setupCartonInteractions() {
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let hoveredRabat = null;
+
+    function onMouseMove(event) {
+        const rect = canvas.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, camera);
+
+        const rabats = window._cartonRabats || [];
+        const meshes = rabats.map(r => r.mesh);
+        const intersects = raycaster.intersectObjects(meshes);
+        let newHover = null;
+        if (intersects.length > 0) {
+            const hit = intersects[0].object;
+            for (let r of rabats) {
+                if (r.mesh === hit) { newHover = r; break; }
+            }
+        }
+
+        if (newHover !== hoveredRabat) {
+            if (hoveredRabat && !hoveredRabat.open) {
+                hoveredRabat.mesh.material = hoveredRabat.originalMat;
+            }
+            if (newHover && !newHover.open) {
+                newHover.mesh.material = newHover.hiMat;
+                canvas.style.cursor = 'pointer';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+            hoveredRabat = newHover;
+        }
+    }
+
+    function onMouseClick(event) {
+        if (!hoveredRabat) return;
+        const r = hoveredRabat;
+        if (r.animating) return;
+
+        r.open = !r.open;
+        r.targetAngle = r.open ? (r.pivot.position.z > 0 ? Math.PI : -Math.PI) : 0;
+        r.animating = true;
+        const startAngle = r.pivot.rotation.x;
+        const targetAngle = r.targetAngle;
+        const duration = 500;
+        const startTime = performance.now();
+
+        function animateRabat(time) {
+            const elapsed = time - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            r.pivot.rotation.x = startAngle + (targetAngle - startAngle) * eased;
+            if (progress < 1) {
+                requestAnimationFrame(animateRabat);
+            } else {
+                r.pivot.rotation.x = targetAngle;
+                r.animating = false;
+                if (r.open) {
+                    r.mesh.material = r.originalMat;
+                }
+                if (hoveredRabat === r && !r.open) {
+                    r.mesh.material = r.hiMat;
+                }
+            }
+        }
+        requestAnimationFrame(animateRabat);
+    }
+
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('click', onMouseClick);
+}
 
         // ─── INTERACTIONS TÉLÉVISION ──────────────────────────────────
         function setupTVInteractions() {
@@ -1667,6 +2058,10 @@ window._cartonCollision = {
         setupTVInteractions();
         createCardboardBox();
         setupCartonInteractions();
+        createDiskDrive();
+setupDriveInteractions();
+createFloppyDisks();
+setupDiskInteractions();
 
         // ─── PORTE DU MILIEU (ouvrir/fermer) ─────────────────────────
         function openMidDoor() {
