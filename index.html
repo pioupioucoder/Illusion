@@ -214,7 +214,37 @@ if (fromCorridor) {
             }
         }, 120);
         floorTex.repeat.set(8, 8);
-
+// Texture damier rouge (copiée du corridor)
+const floorTexCorridor = makeTex(function(ctx, s) {
+    ctx.fillStyle = '#2a0606';
+    ctx.fillRect(0, 0, s, s);
+    const cell = s / 4;
+    for (let r = 0; r < 4; r++) {
+        for (let col = 0; col < 4; col++) {
+            const dark = (r + col) % 2 === 0;
+            ctx.fillStyle = dark ? '#7a0f10' : '#160303';
+            ctx.save();
+            ctx.translate(col * cell + cell / 2, r * cell + cell / 2);
+            ctx.rotate(Math.PI / 4);
+            const d = cell * 0.62;
+            ctx.fillRect(-d / 2, -d / 2, d, d);
+            ctx.restore();
+        }
+    }
+    ctx.strokeStyle = 'rgba(180,120,40,0.25)';
+    ctx.lineWidth = 1.2;
+    for (let i = 0; i <= s; i += cell) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, s);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(s, i);
+        ctx.stroke();
+    }
+}, 128);
+floorTexCorridor.repeat.set(6, 6); // ajuste selon la taille de la moitié
         const woodTex = makeTex(function(ctx, s) {
             ctx.fillStyle = '#5a3a20';
             ctx.fillRect(0, 0, s, s);
@@ -277,9 +307,25 @@ if (fromCorridor) {
         const ROOM_W = 16;
         const ROOM_D = 16;
 
-        // ─── Sol ──────────────────────────────────────────────────────
-        plane(ROOM_W + 2, ROOM_D + 2, mFloor, 0, -0.01, 0, -Math.PI / 2);
+       // ─── Deux demi‑sols (Z < 0 = damier, Z > 0 = d'origine) ─────
+const floorMatOrig = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x6a5848 });
+const floorMatDamier = new THREE.MeshLambertMaterial({ map: floorTexCorridor, color: 0x8a4a4a });
 
+// Moitié Z < 0 (côté du lit)
+const halfDepth = ROOM_D / 2 + 0.1; // légèrement plus grand pour éviter les trous
+const halfW = ROOM_W / 2 + 0.1;
+const floorLeft = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W + 0.2, halfDepth), floorMatDamier);
+floorLeft.rotation.x = -Math.PI / 2;
+floorLeft.position.set(0, -0.01, -halfDepth/2);
+floorLeft.receiveShadow = true;
+scene.add(floorLeft);
+
+// Moitié Z > 0 (autre côté)
+const floorRight = new THREE.Mesh(new THREE.PlaneGeometry(ROOM_W + 0.2, halfDepth), floorMatOrig);
+floorRight.rotation.x = -Math.PI / 2;
+floorRight.position.set(0, -0.01, halfDepth/2);
+floorRight.receiveShadow = true;
+scene.add(floorRight);
         // ─── Murs (sauf avant) ──────────────────────────────────────
         plane(ROOM_W, WALL_H, mWall, 0, WALL_H / 2, -ROOM_D / 2, 0, 0);
         plane(ROOM_D, WALL_H, mWall, -ROOM_W / 2, WALL_H / 2, 0, 0, Math.PI / 2);
