@@ -1,18 +1,27 @@
 [
     {
         "name": "Traumatized",
-        "file": "DO NOT click on the related video unless you wanna be traumatized shorts.mp4"
+        "file": "DO NOT click on the related video unless you wanna be traumatized shorts.mp4",
+        "image": "donot.PNG"
     },
     {
         "name": "Break",
-        "file": "here's a break midst all the angst shorts.mp4"
+        "file": "here's a break midst all the angst shorts.mp4",
+        "image": "break.png"
     },
     {
         "name": "Experiment",
-        "file": "it's not me if I don't experiment shorts.mp4"
+        "file": "it's not me if I don't experiment shorts.mp4",
+        "image": "experiment.png"
     },
     {
         "name": "Cosplay",
-        "file": "SkkSoukoku cosplay compilation viralvideo.mp4"
+        "file": "SkkSoukoku cosplay compilation viralvideo.mp4",
+        "image": "cosplay.png"
+    },
+    {
+        "name": "Bungo Stray Dogs cosplays are shorts",
+        "file": "Bungo Stray Dogs cosplays are  shorts.mp4",
+        "image": "bungo.png"
     }
 ]
