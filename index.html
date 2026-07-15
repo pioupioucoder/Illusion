@@ -1350,6 +1350,49 @@
             ctx.fillText(symbol, 32, 34);
             return new THREE.CanvasTexture(canvas);
         }
+ const DEFAULT_VIDEOS = [
+    "videos/here's a break midst all the angst shorts.mp4",
+];
+
+let videoList = [];
+
+function getRandomVideoPath() {
+    return new Promise((resolve) => {
+        // Si déjà chargé, on pioche
+        if (videoList.length > 0) {
+            const idx = Math.floor(Math.random() * videoList.length);
+            console.log('🔀 Vidéo choisie depuis videoList :', videoList[idx]);
+            resolve(videoList[idx]);
+            return;
+        }
+
+        // Sinon, on charge le JSON
+        const hostname = window.location.hostname;
+        let jsonUrl = (hostname === 'localhost' || hostname === '127.0.0.1')
+            ? '/projet/Illusion/videos.json'
+            : 'videos.json';
+
+        console.log('📡 Chargement de videos.json depuis :', jsonUrl);
+
+        fetch(jsonUrl)
+            .then(response => {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                videoList = data;
+                console.log('✅ JSON chargé, liste :', videoList);
+                const idx = Math.floor(Math.random() * videoList.length);
+                resolve(videoList[idx]);
+            })
+            .catch(err => {
+                console.warn('⚠️ Échec du JSON, utilisation de DEFAULT_VIDEOS :', err);
+                videoList = DEFAULT_VIDEOS.slice(); // copie
+                const idx = Math.floor(Math.random() * videoList.length);
+                resolve(videoList[idx]);
+            });
+    });
+}
 
         function createVintageTV() {
             const group = new THREE.Group();
@@ -1421,22 +1464,50 @@
             const screen = new THREE.Mesh(new THREE.PlaneGeometry(screenWidth, screenHeight), blackMat);
             screen.position.set(0, 0.90, 0.39);
             group.add(screen);
+// ─── CRÉATION DE LA VIDÉO ──────────────────────────────────────
+const video = document.createElement('video');
+video.loop = false;
+video.muted = false;
+video.playsInline = true;
+video.crossOrigin = "anonymous";
+video.preload = "auto";
 
-            const video = document.createElement('video');
-            video.src = getVideoPath();
-            video.loop = true;
-            video.muted = false;
-            video.playsInline = true;
-            video.crossOrigin = "anonymous";
-            video.preload = "auto";
+function loadRandomVideo() {
+    getRandomVideoPath()
+        .then(videoPath => {
+            const hostname = window.location.hostname;
+            let fullPath = (hostname === 'localhost' || hostname === '127.0.0.1')
+                ? '/projet/Illusion/' + videoPath
+                : videoPath;
+            console.log('🎬 Lecture de :', fullPath);
+            video.src = fullPath;
             video.load();
+            if (window._isOn) {
+                video.play().catch(e => console.warn('Play error:', e));
+            }
+        })
+        .catch(err => {
+            // En cas d'erreur imprévue (rare), on utilise une vidéo par défaut
+            console.error('❌ Erreur fatale, fallback ultime', err);
+            video.src = DEFAULT_VIDEOS[0];
+            video.load();
+            if (window._isOn) video.play().catch(() => {});
+        });
+}
 
+// Première vidéo
+loadRandomVideo();
+
+video.addEventListener('ended', function() {
+    // On charge toujours la prochaine vidéo pour qu'elle soit prête
+    loadRandomVideo();
+});
             let storedState = null;
             try {
                 const raw = sessionStorage.getItem('tvState');
                 if (raw) storedState = JSON.parse(raw);
             } catch (e) {}
-            let isOn = storedState ? storedState.isOn : true;
+            let isOn = true;
             let previousVolume = storedState ? storedState.volume : 0.5;
             let videoMaterial = null;
             let videoStarted = false;
