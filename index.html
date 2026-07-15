@@ -1501,11 +1501,18 @@ window._cartonRabats = [
 ];
 window._cartonMaterials = { woodMat: extMat, woodHiMat: hiMat };
     // ── 6. POSITION ──────────────────────────────────────────────
-    group.position.set(-3.79, 0.35, 6.19);
+    group.position.set(-5, 0.35, 7);
     group.rotation.y = 0.0;
     scene.add(group);
 
-    console.log('📦 Carton avec 1 rabat (pivot sur le bord)');
+// ── 7. STOCKAGE POUR LA COLLISION ──────────────────────────────
+window._cartonCollision = {
+    group: group,
+    halfW: boxW / 2,
+    halfH: boxH / 2,
+    halfD: boxD / 2,
+    center: group.position.clone() // utilise la position du groupe
+};console.log('📦 Carton avec 1 rabat (pivot sur le bord)');
     return group;
 }
         // ─── INTERACTIONS DES RABATS ──────────────────────────────────
@@ -2084,6 +2091,30 @@ window._cartonMaterials = { woodMat: extMat, woodHiMat: hiMat };
             camera.position.x += (-fx * cos + fz * sin) * SPEED * dt;
             camera.position.z += (fx * sin + fz * cos) * SPEED * dt;
 
+ // ─── COLLISION AVEC LE CARTON (IGNORE Y) ────────────────────
+const carton = window._cartonCollision;
+if (carton) {
+    const margin = 0.15;
+    const halfW = carton.halfW + margin;
+    const halfD = carton.halfD + margin;
+    const cx = carton.center.x;
+    const cz = carton.center.z;
+
+    // Vérifier uniquement X et Z (pas Y)
+    if (Math.abs(camera.position.x - cx) < halfW &&
+        Math.abs(camera.position.z - cz) < halfD) {
+        const overlapX = halfW - Math.abs(camera.position.x - cx);
+        const overlapZ = halfD - Math.abs(camera.position.z - cz);
+
+        if (overlapX < overlapZ) {
+            const sign = Math.sign(camera.position.x - cx) || 1;
+            camera.position.x = cx + sign * halfW;
+        } else {
+            const sign = Math.sign(camera.position.z - cz) || 1;
+            camera.position.z = cz + sign * halfD;
+        }
+    }
+}
             // ─── COLLISION MUR CENTRAL + VANTAIL ──────────────────────
             const limits = window._midWallLimits;
             if (limits) {
