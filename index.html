@@ -285,102 +285,86 @@ if (fromCorridor) {
         plane(ROOM_D, WALL_H, mWall, -ROOM_W / 2, WALL_H / 2, 0, 0, Math.PI / 2);
         plane(ROOM_D, WALL_H, mWall, ROOM_W / 2, WALL_H / 2, 0, 0, -Math.PI / 2);
 // ═══════════════════════════════════════════════════════════════
-//  MUR CENTRAL SOLIDE (épaisseur 0.3) AVEC OUVERTURE DE PORTE
+//  MUR CENTRAL – PORTE INTÉRIEURE AVEC COLLISION VANTAIL
 // ═══════════════════════════════════════════════════════════════
 (function() {
-    const doorW = 1.2;   // largeur de la porte
-    const doorH = 2.2;   // hauteur de la porte
-    const doorZ = 0;     // position en Z (0 = milieu)
-    const doorX = 0;     // centré en X
+    const doorW = 1.2, doorH = 2.2;
+    const doorZ = 0, doorX = 0;
+    const wallThick = 0.3;
 
-    const wallThick = 0.3; // ÉPAISSEUR du mur (solide)
+    // ── 1. Mur (double face) ──────────────────────────────────
     const wallMat = new THREE.MeshLambertMaterial({
         map: stoneTex,
         color: 0xddd0b8,
-        side: THREE.DoubleSide // pour voir des deux côtés
+        side: THREE.DoubleSide
     });
 
-    // ── 1. Bloc gauche (X < -doorW/2) ──────────────────────────
-    const leftW = (-doorW/2) - (-ROOM_W/2);
+    // Bloc gauche
+    const leftW = -doorW/2 - (-ROOM_W/2);
     if (leftW > 0.01) {
-        const leftBlock = new THREE.Mesh(
-            new THREE.BoxGeometry(leftW, WALL_H, wallThick),
-            wallMat
-        );
-        leftBlock.position.set(
-            (-ROOM_W/2 + (-doorW/2)) / 2,
-            WALL_H / 2,
-            doorZ
-        );
-        leftBlock.castShadow = true;
-        leftBlock.receiveShadow = true;
+        const leftBlock = new THREE.Mesh(new THREE.BoxGeometry(leftW, WALL_H, wallThick), wallMat);
+        leftBlock.position.set((-ROOM_W/2 + (-doorW/2)) / 2, WALL_H/2, doorZ);
+        leftBlock.castShadow = true; leftBlock.receiveShadow = true;
         scene.add(leftBlock);
     }
-
-    // ── 2. Bloc droite (X > doorW/2) ──────────────────────────
+    // Bloc droite
     const rightW = ROOM_W/2 - doorW/2;
     if (rightW > 0.01) {
-        const rightBlock = new THREE.Mesh(
-            new THREE.BoxGeometry(rightW, WALL_H, wallThick),
-            wallMat
-        );
-        rightBlock.position.set(
-            (doorW/2 + ROOM_W/2) / 2,
-            WALL_H / 2,
-            doorZ
-        );
-        rightBlock.castShadow = true;
-        rightBlock.receiveShadow = true;
+        const rightBlock = new THREE.Mesh(new THREE.BoxGeometry(rightW, WALL_H, wallThick), wallMat);
+        rightBlock.position.set((doorW/2 + ROOM_W/2) / 2, WALL_H/2, doorZ);
+        rightBlock.castShadow = true; rightBlock.receiveShadow = true;
         scene.add(rightBlock);
     }
-
-    // ── 3. Bloc au‑dessus de la porte ──────────────────────────
+    // Bloc au-dessus
     const topH = WALL_H - doorH;
     if (topH > 0.01) {
-        const topBlock = new THREE.Mesh(
-            new THREE.BoxGeometry(doorW * 1.6, topH, wallThick),
-            wallMat
-        );
-        topBlock.position.set(
-            doorX,
-            (doorH + WALL_H) / 2,
-            doorZ
-        );
-        topBlock.castShadow = true;
-        topBlock.receiveShadow = true;
+        const topBlock = new THREE.Mesh(new THREE.BoxGeometry(doorW * 1.6, topH, wallThick), wallMat);
+        topBlock.position.set(doorX, (doorH + WALL_H) / 2, doorZ);
+        topBlock.castShadow = true; topBlock.receiveShadow = true;
         scene.add(topBlock);
     }
 
-    // ── 4. Cadre de la porte (décoratif) ──────────────────────
-    const frameMat = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
-    // Montant gauche
-    const leftFrame = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, doorH, 0.12),
-        frameMat
-    );
-    leftFrame.position.set(-doorW/2 - 0.04, doorH/2, doorZ);
-    leftFrame.castShadow = true;
-    scene.add(leftFrame);
+    // ── 2. Cadre de porte (métal) ─────────────────────────────
+    const frameMat = new THREE.MeshStandardMaterial({
+        color: 0x8899aa,
+        metalness: 0.6,
+        roughness: 0.3
+    });
+    const fw = 0.06;
+    const leftFrame = new THREE.Mesh(new THREE.BoxGeometry(fw, doorH, 0.10), frameMat);
+    leftFrame.position.set(-doorW/2 - 0.03, doorH/2, doorZ);
+    leftFrame.castShadow = true; scene.add(leftFrame);
+    const rightFrame = new THREE.Mesh(new THREE.BoxGeometry(fw, doorH, 0.10), frameMat);
+    rightFrame.position.set(doorW/2 + 0.03, doorH/2, doorZ);
+    rightFrame.castShadow = true; scene.add(rightFrame);
+    const topFrame = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.12, 0.06, 0.10), frameMat);
+    topFrame.position.set(doorX, doorH + 0.03, doorZ);
+    topFrame.castShadow = true; scene.add(topFrame);
+    const botFrame = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.12, 0.04, 0.10), frameMat);
+    botFrame.position.set(doorX, 0.02, doorZ);
+    botFrame.castShadow = true; scene.add(botFrame);
 
-    // Montant droit
-    const rightFrame = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, doorH, 0.12),
-        frameMat
-    );
-    rightFrame.position.set(doorW/2 + 0.04, doorH/2, doorZ);
-    rightFrame.castShadow = true;
-    scene.add(rightFrame);
+    // ── 3. Porte (bois clair + vitre) ─────────────────────────
+    const doorMat = new THREE.MeshStandardMaterial({
+        color: 0xe8e0d8,
+        roughness: 0.5,
+        metalness: 0.05
+    });
+    const doorMatHi = new THREE.MeshStandardMaterial({
+        color: 0xf0ece8,
+        emissive: 0x443322,
+        emissiveIntensity: 0.2
+    });
+    const glassMat = new THREE.MeshPhysicalMaterial({
+        color: 0xcceeff,
+        transparent: true,
+        opacity: 0.4,
+        roughness: 0.02,
+        metalness: 0.0,
+        side: THREE.DoubleSide
+    });
 
-    // Traverse haute
-    const topFrame = new THREE.Mesh(
-        new THREE.BoxGeometry(doorW + 0.16, 0.08, 0.12),
-        frameMat
-    );
-    topFrame.position.set(doorX, doorH + 0.04, doorZ);
-    topFrame.castShadow = true;
-    scene.add(topFrame);
-
-    // ── 5. Porte interactive (charnière à gauche) ──────────────
+    // Pivot
     const pivotMid = new THREE.Group();
     pivotMid.position.set(-doorW/2, doorH/2, doorZ);
     scene.add(pivotMid);
@@ -388,31 +372,50 @@ if (fromCorridor) {
     const doorGroupMid = new THREE.Group();
     doorGroupMid.position.set(doorW/2, 0, 0);
 
-    const doorMeshMid = new THREE.Mesh(
-        new THREE.BoxGeometry(doorW, doorH, 0.04),
-        mDoor
-    );
+    // Vantail principal (bois)
+    const doorMeshMid = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.035), doorMat);
     doorMeshMid.position.set(0, 0, 0);
-    doorMeshMid.castShadow = true;
-    doorMeshMid.receiveShadow = true;
+    doorMeshMid.castShadow = true; doorMeshMid.receiveShadow = true;
     doorGroupMid.add(doorMeshMid);
 
-    // Poignée
-    const handleMid = new THREE.Mesh(
-        new THREE.SphereGeometry(0.06, 8, 6),
-        mHandle
-    );
-    handleMid.position.set(0.35, -0.2, 0.06);
-    handleMid.castShadow = true;
-    doorGroupMid.add(handleMid);
+    // Grande vitre
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(doorW * 0.7, doorH * 0.7), glassMat);
+    glass.position.set(0, 0, 0.02);
+    doorGroupMid.add(glass);
 
-    const handleBaseMid = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.03, 0.03, 0.12, 6),
-        mHandle
-    );
-    handleBaseMid.rotation.x = Math.PI / 2;
-    handleBaseMid.position.set(0.35, -0.2, 0.04);
-    doorGroupMid.add(handleBaseMid);
+    // Cadre vitre (métal)
+    const gfMat = new THREE.MeshStandardMaterial({ color: 0x99aabb, metalness: 0.7, roughness: 0.2 });
+    const gf = 0.02;
+    const gTop = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.72, gf, 0.01), gfMat);
+    gTop.position.set(0, doorH * 0.35 + gf/2, 0.025);
+    doorGroupMid.add(gTop);
+    const gBot = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.72, gf, 0.01), gfMat);
+    gBot.position.set(0, -doorH * 0.35 - gf/2, 0.025);
+    doorGroupMid.add(gBot);
+    const gLeft = new THREE.Mesh(new THREE.BoxGeometry(gf, doorH * 0.7, 0.01), gfMat);
+    gLeft.position.set(-doorW * 0.35 - gf/2, 0, 0.025);
+    doorGroupMid.add(gLeft);
+    const gRight = new THREE.Mesh(new THREE.BoxGeometry(gf, doorH * 0.7, 0.01), gfMat);
+    gRight.position.set(doorW * 0.35 + gf/2, 0, 0.025);
+    doorGroupMid.add(gRight);
+    const gCrossH = new THREE.Mesh(new THREE.BoxGeometry(doorW * 0.5, gf*0.8, 0.01), gfMat);
+    gCrossH.position.set(0, 0, 0.025);
+    doorGroupMid.add(gCrossH);
+    const gCrossV = new THREE.Mesh(new THREE.BoxGeometry(gf*0.8, doorH * 0.5, 0.01), gfMat);
+    gCrossV.position.set(0, 0, 0.025);
+    doorGroupMid.add(gCrossV);
+
+    // Poignée noire
+    const hMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.2 });
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.15, 8), hMat);
+    handle.rotation.z = Math.PI / 2;
+    handle.position.set(0.32, -0.1, 0.04);
+    handle.castShadow = true;
+    doorGroupMid.add(handle);
+    const hBase = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 6), hMat);
+    hBase.position.set(0.38, -0.1, 0.04);
+    hBase.castShadow = true;
+    doorGroupMid.add(hBase);
 
     // Zone cliquable (invisible)
     const clickAreaMid = new THREE.Mesh(
@@ -425,26 +428,31 @@ if (fromCorridor) {
 
     pivotMid.add(doorGroupMid);
 
-    window._midDoorPivot = pivotMid;
+    // ── 4. Collision du vantail (boîte englobante) ────────────
+    // On stocke le groupe et les dimensions pour la collision
     window._midDoorGroup = doorGroupMid;
+    window._midDoorPivot = pivotMid;
     window._midDoorMesh = doorMeshMid;
-    window._midDoorMat = mDoor;
-    window._midDoorHighlightMat = mDoorHighlight;
+    window._midDoorMat = doorMat;
+    window._midDoorHighlightMat = doorMatHi;
     window._midDoorOpen = false;
     window._midDoorAnimating = false;
+    window._midDoorCollision = {
+        halfW: doorW / 2,
+        halfH: doorH / 2,
+        halfD: 0.035 / 2 + 0.05 // épaisseur + marge
+    };
 
-    // ── 6. Lumière au‑dessus ──────────────────────────────────
-    const midLight = new THREE.PointLight(0xff8844, 0.3, 4);
-    midLight.position.set(0, doorH + 0.6, doorZ + 0.5);
-    scene.add(midLight);
-    const midGlow = new THREE.Mesh(
-        new THREE.SphereGeometry(0.06, 8, 6),
-        new THREE.MeshBasicMaterial({ color: 0xff8844 })
-    );
-    midGlow.position.copy(midLight.position);
-    scene.add(midGlow);
+    // ── 5. Lumière ─────────────────────────────────────────────
+    const light = new THREE.PointLight(0xccddff, 0.3, 5);
+    light.position.set(0, doorH + 0.6, doorZ + 0.5);
+    scene.add(light);
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6),
+        new THREE.MeshBasicMaterial({ color: 0xccddff }));
+    glow.position.copy(light.position);
+    scene.add(glow);
 
-    // ── 7. On stocke les limites pour la collision ─────────────
+    // ── 6. Limites du mur pour la collision ────────────────────
     window._midWallLimits = {
         minX: -ROOM_W/2,
         maxX: ROOM_W/2,
@@ -2245,33 +2253,32 @@ function handleKnobAction(action) {
         }
         canvas.addEventListener('mousemove', updateMidDoorInteraction);
 
-        function openMidDoor() {
-            if (window._midDoorOpen || window._midDoorAnimating) return;
-            window._midDoorAnimating = true;
-            showToast('🚪 Porte intérieure...');
-            const pivot = window._midDoorPivot;
-            const targetAngle = Math.PI / 2;
-            const duration = 800;
-            const startTime = performance.now();
-            const startRot = 0;
-            function animateMidDoor(time) {
-                const elapsed = time - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
-                const currentAngle = startRot + (targetAngle - startRot) * eased;
-                pivot.rotation.y = currentAngle;
-                if (progress < 1) {
-                    requestAnimationFrame(animateMidDoor);
-                } else {
-                    pivot.rotation.y = targetAngle;
-                    window._midDoorOpen = true;
-                    window._midDoorAnimating = false;
-                    showToast('✅ Porte ouverte !');
-                }
-            }
-            requestAnimationFrame(animateMidDoor);
-        }
+   function openMidDoor() {
+    if (window._midDoorAnimating) return;
+    const pivot = window._midDoorPivot;
+    const isOpen = window._midDoorOpen;
+    const targetAngle = isOpen ? 0 : Math.PI / 2;
+    window._midDoorAnimating = true;
+    const duration = 600;
+    const startTime = performance.now();
+    const startRot = pivot.rotation.y;
 
+    function animateMidDoor(time) {
+        const elapsed = time - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const currentAngle = startRot + (targetAngle - startRot) * eased;
+        pivot.rotation.y = currentAngle;
+        if (progress < 1) {
+            requestAnimationFrame(animateMidDoor);
+        } else {
+            pivot.rotation.y = targetAngle;
+            window._midDoorOpen = !isOpen;
+            window._midDoorAnimating = false;
+        }
+    }
+    requestAnimationFrame(animateMidDoor);
+}
         canvas.addEventListener('click', function(event) {
             if (hoverMidDoor && !window._midDoorOpen && !window._midDoorAnimating) {
                 openMidDoor();
@@ -2697,32 +2704,65 @@ function loop(time) {
     var cos = Math.cos(camYaw), sin = Math.sin(camYaw);
     camera.position.x += (-fx * cos + fz * sin) * SPEED * dt;
     camera.position.z += (fx * sin + fz * cos) * SPEED * dt;
-// ─── COLLISION AVEC LE MUR CENTRAL (solide) ──────────────────
+  
+// ─── COLLISION MUR CENTRAL + VANTAIL DE PORTE ──────────────
 const limits = window._midWallLimits;
 if (limits) {
-    const halfWall = limits.thickness / 2 + 0.05; // 0.15 + 0.05 = marge
+    const halfWall = limits.thickness / 2 + 0.1;
     const inXRange = camera.position.x >= limits.minX && camera.position.x <= limits.maxX;
     const inDoorX = camera.position.x >= limits.doorMinX && camera.position.x <= limits.doorMaxX;
     const isDoorOpen = window._midDoorOpen || false;
 
+    // 1. Collision avec le mur (bloque SAUF si porte ouverte)
     if (inXRange) {
-        // Si on est dans la zone de la porte ET la porte est ouverte → on autorise le passage
-        if (inDoorX && isDoorOpen) {
-            // Pas de blocage
-        } else {
-            // On bloque le franchissement du mur
+        const canPass = inDoorX && isDoorOpen;
+        if (!canPass) {
             if (camera.position.z > -halfWall && camera.position.z < halfWall) {
-                // On repousse le joueur du côté où il se trouve
-                if (camera.position.z > 0) {
-                    camera.position.z = halfWall;
-                } else {
-                    camera.position.z = -halfWall;
-                }
+                if (camera.position.z > 0) camera.position.z = halfWall;
+                else camera.position.z = -halfWall;
             }
         }
     }
-}
 
+    // 2. Collision avec le vantail de la porte (toujours active)
+    const doorGroup = window._midDoorGroup;
+    if (doorGroup) {
+        const worldPos = new THREE.Vector3();
+        doorGroup.getWorldPosition(worldPos);
+        const worldQuat = new THREE.Quaternion();
+        doorGroup.getWorldQuaternion(worldQuat);
+
+        const halfW = 0.6;   // doorW/2
+        const halfH = 1.1;   // doorH/2
+        const halfD = 0.05;  // épaisseur
+
+        const localPos = camera.position.clone().sub(worldPos);
+        localPos.applyQuaternion(worldQuat.clone().invert());
+
+        const margin = 0.15;
+        if (Math.abs(localPos.x) < halfW + margin &&
+            Math.abs(localPos.y) < halfH + margin &&
+            Math.abs(localPos.z) < halfD + margin) {
+            const overlapX = halfW + margin - Math.abs(localPos.x);
+            const overlapY = halfH + margin - Math.abs(localPos.y);
+            const overlapZ = halfD + margin - Math.abs(localPos.z);
+
+            if (overlapX < overlapY && overlapX < overlapZ) {
+                const sign = Math.sign(localPos.x) || 1;
+                localPos.x = sign * (halfW + margin);
+            } else if (overlapY < overlapX && overlapY < overlapZ) {
+                const sign = Math.sign(localPos.y) || 1;
+                localPos.y = sign * (halfH + margin);
+            } else {
+                const sign = Math.sign(localPos.z) || 1;
+                localPos.z = sign * (halfD + margin);
+            }
+
+            localPos.applyQuaternion(worldQuat);
+            camera.position.copy(worldPos.clone().add(localPos));
+        }
+    }
+}
 var margin = 0.8;
     var margin = 0.8;
     camera.position.x = Math.max(-ROOM_W / 2 + margin, Math.min(ROOM_W / 2 - margin, camera.position.x));
