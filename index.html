@@ -1818,48 +1818,69 @@ function setupDiskInteractions() {
 }
 // ─── CRÉATION DES DISQUETTES DANS LE CARTON ──────────────────
 function createFloppyDisks() {
-    const diskNames = ['video1', 'video2', 'video3', 'video4'];
-    const colors = [0x2244aa, 0x44aa22, 0xaa4422, 0xaa44aa];
-    const disks = [];
-
-    // On place les disquettes dans le carton (à l'intérieur, sur le fond)
-    // Le carton est à (-5, 0.35, 7) avec rotation.y=0
-    const cartonPos = new THREE.Vector3(-5, 0.35, 7);
-    const startX = -0.35;
-    const startZ = -0.25;
-    const spacingX = 0.2;
-    const spacingZ = 0.15;
-    const diskGroup = new THREE.Group();
-    diskGroup.position.set(cartonPos.x, cartonPos.y - 0.25, cartonPos.z);
-    diskGroup.rotation.y = 0;
-
-    let index = 0;
-    for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 2; col++) {
-            if (index >= diskNames.length) break;
-            const disk = createFloppyDisk3D(colors[index % colors.length], diskNames[index]);
-            const x = startX + col * spacingX;
-            const z = startZ + row * spacingZ;
-            disk.position.set(x, 0.02, z);
-            disk.rotation.y = (Math.random() - 0.5) * 0.2;
-            disk.userData.diskName = diskNames[index];
-            disk.userData.videoPath = diskNames[index] + '.mp4';
-            disk.userData.isDisk = true;
-            diskGroup.add(disk);
-            disks.push(disk);
-            index++;
-        }
+    const hostname = window.location.hostname;
+    let jsonUrl;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        jsonUrl = '/projet/Illusion/videos/disquettes/list.json';
+    } else {
+        jsonUrl = 'videos/disquettes/list.json';
     }
 
-    scene.add(diskGroup);
-    window._disks = disks;
-    window._diskGroup = diskGroup;
+    fetch(jsonUrl)
+        .then(response => {
+            if (!response.ok) throw new Error('Impossible de charger list.json');
+            return response.json();
+        })
+        .then(diskData => {
+            if (window._diskGroup) {
+                scene.remove(window._diskGroup);
+                window._diskGroup = null;
+            }
 
-    console.log('💾 Disquettes créées dans le carton');
-    return disks;
+            const diskGroup = new THREE.Group();
+            const cartonPos = new THREE.Vector3(-5, 0.35, 7);
+            diskGroup.position.set(cartonPos.x, cartonPos.y - 0.25, cartonPos.z);
+            diskGroup.rotation.y = 0;
+
+            const startX = -0.35;
+            const startZ = -0.25;
+            const spacingX = 0.2;
+            const spacingZ = 0.15;
+            const disks = [];
+
+            const maxDisks = diskData.length;
+            let index = 0;
+            for (let row = 0; row < 4 && index < maxDisks; row++) {
+                for (let col = 0; col < 4 && index < maxDisks; col++) {
+                    const entry = diskData[index];
+                    const color = entry.color || 0x2244aa;
+                    const disk = createFloppyDisk3D(color, entry.name, entry.file);
+                    const x = startX + col * spacingX;
+                    const z = startZ + row * spacingZ;
+                    disk.position.set(x, 0.02, z);
+                    disk.rotation.y = (Math.random() - 0.5) * 0.2;
+                    disk.userData.diskName = entry.name;
+                    disk.userData.videoPath = 'videos/disquettes/' + entry.file; // ← ici le bon chemin
+                    disk.userData.isDisk = true;
+                    diskGroup.add(disk);
+                    disks.push(disk);
+                    index++;
+                }
+            }
+
+            scene.add(diskGroup);
+            window._disks = disks;
+            window._diskGroup = diskGroup;
+            console.log('💾 Disquettes créées depuis list.json');
+        })
+        .catch(err => {
+            console.error('Erreur JSON :', err);
+            createFallbackDisks();
+        });
 }
 
-function createFloppyDisk3D(color, name) {
+// ─── CRÉATION D'UNE DISQUETTE 3D (inchangée) ──────────────
+function createFloppyDisk3D(color, name, file) {
     const group = new THREE.Group();
     const bodyMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
     const labelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
@@ -1882,10 +1903,46 @@ function createFloppyDisk3D(color, name) {
     hole.position.set(0.05, 0.003, 0.081);
     group.add(hole);
 
-    // Texte du nom (optionnel)
-    // On stocke le nom
+    // On stocke le nom pour l'affichage (optionnel)
     group.userData.diskName = name;
+    group.userData.videoFile = file;
     return group;
+}
+
+// ─── FALLBACK (si le JSON ne se charge pas) ────────────────
+function createFallbackDisks() {
+    const diskNames = ['Video 1', 'Video 2', 'Video 3', 'Video 4'];
+    const colors = [0x2244aa, 0x44aa22, 0xaa4422, 0xaa44aa];
+    const files = ['video1.mp4', 'video2.mp4', 'video3.mp4', 'video4.mp4'];
+
+    const diskGroup = new THREE.Group();
+    const cartonPos = new THREE.Vector3(-5, 0.35, 7);
+    diskGroup.position.set(cartonPos.x, cartonPos.y - 0.25, cartonPos.z);
+    diskGroup.rotation.y = 0;
+
+    const startX = -0.35;
+    const startZ = -0.25;
+    const spacingX = 0.2;
+    const spacingZ = 0.15;
+    const disks = [];
+
+    for (let i = 0; i < diskNames.length; i++) {
+        const disk = createFloppyDisk3D(colors[i % colors.length], diskNames[i], files[i]);
+        const x = startX + (i % 2) * spacingX;
+        const z = startZ + Math.floor(i / 2) * spacingZ;
+        disk.position.set(x, 0.02, z);
+        disk.rotation.y = (Math.random() - 0.5) * 0.2;
+        disk.userData.diskName = diskNames[i];
+        disk.userData.videoPath = 'videos/' + files[i]; // chemin par défaut
+        disk.userData.isDisk = true;
+        diskGroup.add(disk);
+        disks.push(disk);
+    }
+
+    scene.add(diskGroup);
+    window._disks = disks;
+    window._diskGroup = diskGroup;
+    console.log('💾 Disquettes de fallback créées');
 }
 
 // ─── CHARGEMENT DE LA VIDÉO DANS LA TÉLÉ ────────────────────
@@ -1893,15 +1950,21 @@ function loadVideoForDisk(disk) {
     const video = window._video;
     if (!video) return;
 
-    const videoPath = disk.userData.videoPath || disk.userData.diskName + '.mp4';
-    // Construire le chemin complet
+    let videoPath = disk.userData.videoPath;
+    if (!videoPath) {
+        const name = disk.userData.diskName || 'video';
+        videoPath = 'videos/disquettes/' + name + '.mp4';
+    }
+
     const hostname = window.location.hostname;
     let fullPath;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        fullPath = '/projet/Illusion/videos/' + videoPath;
+        fullPath = '/projet/Illusion/' + videoPath;
     } else {
-        fullPath = 'videos/' + videoPath;
+        fullPath = videoPath;
     }
+    // Encoder les espaces et caractères spéciaux
+    fullPath = encodeURI(fullPath);
 
     video.src = fullPath;
     video.load();
