@@ -125,9 +125,8 @@ export function buildIllusionWorld(scene, camera, canvas) {
     woodTex.repeat.set(4, 4);
 
     // ─── MATÉRIAUX ──────────────────────────────────────────────────
-    const mWall = new THREE.MeshLambertMaterial({ map: stoneTex, color: 0xddd0b8 });
-    const mWallCorridor = new THREE.MeshLambertMaterial({ map: stoneTex, color: 0x9a6858 });
-    const mFloor = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x6a5848 });
+    const mWall = new THREE.MeshLambertMaterial({ map: stoneTex, color: 0xddd0b8 }); // clair, comme le mur du milieu
+// Supprimer ou commenter la ligne avec mWallCorridorconst mFloor = new THREE.MeshLambertMaterial({ map: floorTex, color: 0x6a5848 });
     const mWood = new THREE.MeshLambertMaterial({ map: woodTex, color: 0x7a5a38 });
     const mGlass = new THREE.MeshLambertMaterial({ color: 0x88bbdd, transparent: true, opacity: 0.2, side: THREE.DoubleSide });
     const mCeil = new THREE.MeshLambertMaterial({ color: 0xddd0c0 });
@@ -195,19 +194,17 @@ export function buildIllusionWorld(scene, camera, canvas) {
     scene.add(floorRight);
 
     // ─── MURS EXTÉRIEURS ──────────────────────────────────────────
-    plane(ROOM_W, WALL_H, mWallCorridor, 0, WALL_H / 2, -ROOM_D / 2, 0, 0);
-    plane(ROOM_D / 2, WALL_H, mWallCorridor, -ROOM_W / 2, WALL_H / 2, -ROOM_D / 4, 0, Math.PI / 2);
-    plane(ROOM_D / 2, WALL_H, mWall, -ROOM_W / 2, WALL_H / 2, ROOM_D / 4, 0, Math.PI / 2);
-    plane(ROOM_D / 2, WALL_H, mWallCorridor, ROOM_W / 2, WALL_H / 2, -ROOM_D / 4, 0, -Math.PI / 2);
-    plane(ROOM_D / 2, WALL_H, mWall, ROOM_W / 2, WALL_H / 2, ROOM_D / 4, 0, -Math.PI / 2);
-
+   // Tous les murs extérieurs sont clairs (comme le mur du milieu)
+plane(ROOM_W, WALL_H, mWall, 0, WALL_H / 2, -ROOM_D / 2, 0, 0);
+plane(ROOM_W, WALL_H, mWall, 0, WALL_H / 2, ROOM_D / 2, 0, 0);
+plane(ROOM_D, WALL_H, mWall, -ROOM_W / 2, WALL_H / 2, 0, 0, Math.PI / 2);
+plane(ROOM_D, WALL_H, mWall, ROOM_W / 2, WALL_H / 2, 0, 0, -Math.PI / 2);
     // ─── MUR CENTRAL – PORTE INTÉRIEURE ──────────────────────────
     (function() {
         const doorW = 1.2, doorH = 2.2;
         const doorZ = 0, doorX = 0;
         const wallThick = 0.3;
-        const wallMat = new THREE.MeshLambertMaterial({ map: stoneTex, color: 0xddd0b8, side: THREE.DoubleSide });
-
+      const wallMat = mWall; // on utilise le même matériau clair
         const leftW = -doorW / 2 - (-ROOM_W / 2);
         if (leftW > 0.01) {
             const leftBlock = new THREE.Mesh(new THREE.BoxGeometry(leftW, WALL_H, wallThick), wallMat);
@@ -386,7 +383,14 @@ export function buildIllusionWorld(scene, camera, canvas) {
 
     // ─── PLAFOND ──────────────────────────────────────────────────
     plane(ROOM_W, ROOM_D, mCeil, 0, WALL_H, 0, Math.PI / 2);
-
+// ─── PLINTHES EN BOIS ROUGE ──────────────────────────────────
+const mBaseboard = new THREE.MeshLambertMaterial({ color: 0x6a1a1a, roughness: 0.7 });
+const baseH = 0.12;
+const baseDepth = 0.03;
+box(ROOM_W, baseH, baseDepth, mBaseboard, 0, baseH / 2, -ROOM_D / 2 + 0.02);
+box(ROOM_W, baseH, baseDepth, mBaseboard, 0, baseH / 2, ROOM_D / 2 - 0.02);
+box(baseDepth, baseH, ROOM_D, mBaseboard, -ROOM_W / 2 + 0.02, baseH / 2, 0);
+box(baseDepth, baseH, ROOM_D, mBaseboard, ROOM_W / 2 - 0.02, baseH / 2, 0);
 // ─── LAMPES MODERNES (2 zones) ──────────────────────────────────────
 
 // Configuration des lampes
