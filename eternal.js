@@ -45,6 +45,17 @@ export function buildEternalWorld(scene) {
     const activeChunks = new Map();
     let lastChunkX = Infinity, lastChunkZ = Infinity;
 
+    // ─── Zone Illusion (pour supprimer la végétation) ──────────────
+    const ILLUSION_CENTER_X = 200;
+    const ILLUSION_CENTER_Z = 0;
+    const ILLUSION_RADIUS = 100; // Rayon large pour être sûr
+
+    function isInsideIllusionZone(x, z) {
+        const dx = x - ILLUSION_CENTER_X;
+        const dz = z - ILLUSION_CENTER_Z;
+        return (dx*dx + dz*dz) < (ILLUSION_RADIUS * ILLUSION_RADIUS);
+    }
+
     function seededRand(x, z, salt = 0) {
         const n = Math.sin(x * 127.1 + z * 311.7 + salt * 91.3) * 43758.5453;
         return n - Math.floor(n);
@@ -78,6 +89,7 @@ export function buildEternalWorld(scene) {
         const worldX = cx * CHUNK_SIZE;
         const worldZ = cz * CHUNK_SIZE;
 
+        // ─── Sol ──────────────────────────────────────────────────
         const ground = new THREE.Mesh(new THREE.PlaneGeometry(CHUNK_SIZE, CHUNK_SIZE), mGrass);
         ground.rotation.x = -Math.PI / 2;
         ground.position.set(worldX, -0.02, worldZ);
@@ -86,26 +98,32 @@ export function buildEternalWorld(scene) {
 
         const rng = (s) => seededRand(cx, cz, s);
 
+        // ─── Arbres ──────────────────────────────────────────────
         const numTrees = Math.floor(rng(1) * 6) + 3;
         for (let t = 0; t < numTrees; t++) {
             const lx = worldX + (rng(cx * 13 + t, cz, 2) - 0.5) * CHUNK_SIZE * 0.92;
             const lz = worldZ + (rng(cx, cz * 17 + t, 3) - 0.5) * CHUNK_SIZE * 0.92;
+            if (isInsideIllusionZone(lx, lz)) continue;
             const h = 4 + rng(cx * t + 7, cz, 6) * 5;
             makeTree(group, lx, lz, h);
         }
 
+        // ─── Buissons ────────────────────────────────────────────
         const numBush = Math.floor(rng(10) * 4);
         for (let b = 0; b < numBush; b++) {
             const lx = worldX + (rng(cx + b * 11, cz, 11) - 0.5) * CHUNK_SIZE * 0.85;
             const lz = worldZ + (rng(cx, cz + b * 7, 12) - 0.5) * CHUNK_SIZE * 0.85;
+            if (isInsideIllusionZone(lx, lz)) continue;
             const sz = 0.6 + rng(b + 15) * 1.0;
             makeBush(group, lx, lz, sz);
         }
 
+        // ─── Rochers ─────────────────────────────────────────────
         const numRocks = Math.floor(rng(30) * 3);
         for (let r = 0; r < numRocks; r++) {
             const lx = worldX + (rng(cx + r * 5, cz, 31) - 0.5) * CHUNK_SIZE * 0.8;
             const lz = worldZ + (rng(cx, cz + r * 7, 32) - 0.5) * CHUNK_SIZE * 0.8;
+            if (isInsideIllusionZone(lx, lz)) continue;
             const rock = new THREE.Mesh(
                 new THREE.DodecahedronGeometry(0.08 + rng(r + 33) * 0.25, 0),
                 new THREE.MeshLambertMaterial({ color: 0x3a3a44 })
@@ -115,6 +133,8 @@ export function buildEternalWorld(scene) {
             group.add(rock);
         }
 
+        // Marqueur pour identifier les chunks (utile si on veut les supprimer plus tard)
+        group.userData.isChunk = true;
         scene.add(group);
         activeChunks.set(key, group);
     }
@@ -145,7 +165,9 @@ export function buildEternalWorld(scene) {
         }
     }
 
-    updateChunks(0, 0);
+    // ─── Initialisation des chunks autour de la maison Illusion ──
+    // Au lieu de (0,0), on charge autour de (200,0) où se trouve la maison.
+    updateChunks(200, 0);
 
     // ─── CIEL, LUNE, ÉTOILES ────────────────────────────────────────
     const skyCanvas = document.createElement('canvas');

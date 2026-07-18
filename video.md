@@ -1,8 +1,5 @@
-[
-  "thethingsthatiwoulddo.mp4",
-   "videos/here's a break midst all the angst shorts.mp4",
+ "videos/here's a break midst all the angst shorts.mp4",
   "videos/Bungo Stray Dogs cosplays are  shorts.mp4",
   "videos/DO NOT click on the related video unless you wanna be traumatized shorts.mp4",
   "videos/it's not me if I don't experiment shorts.mp4",
   "videos/SkkSoukoku cosplay compilation viralvideo.mp4"
-]
