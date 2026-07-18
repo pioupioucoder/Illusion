@@ -172,10 +172,11 @@
         scene.fog = new THREE.FogExp2(0x080a18, 0.0006);
 
         const camera = new THREE.PerspectiveCamera(65, 1, 0.1, 4000);
-        camera.position.set(0, 1.7, 16);
+        // --- MODIFICATION : point de départ dans la maison Illusion ---
+        camera.position.set(200, 1.7, 0);
         camera.rotation.order = 'YXZ';
-        camera.rotation.y = Math.PI;
-        camera.rotation.x = 0.05;
+        camera.rotation.y = Math.PI;   // regard vers +Z (porte extérieure)
+        camera.rotation.x = 0;
 
         // ─── Lumières globales ──────────────────────────────────────
         const moonLight = new THREE.DirectionalLight(0x4466aa, 0.30);
@@ -309,7 +310,8 @@
         }
 
         // ─── Caméra libre ──────────────────────────────────────────────
-        let camYaw = Math.PI, camPitch = 0.05;
+        // --- MODIFICATION : camYaw initial = PI pour regarder vers +Z ---
+        let camYaw = Math.PI, camPitch = 0;
         let mdown = false, lmx = 0, lmy = 0;
 
         canvas.addEventListener('mousedown', e => { mdown = true; lmx = e.clientX; lmy = e.clientY; canvas.style.cursor = 'grabbing'; });
