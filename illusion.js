@@ -3,21 +3,27 @@ import * as THREE from 'three';
 
 export function buildIllusionWorld(scene, camera, canvas) {
     // ─── LUMIÈRES ──────────────────────────────────────────────────
-    const ambient = new THREE.AmbientLight(0x887868, 0.6);
-    scene.add(ambient);
+// ─── LUMIÈRES ──────────────────────────────────────────────────
+const ambient = new THREE.AmbientLight(0x887868, 0.15); // très faible
+scene.add(ambient);
 
-    const sun = new THREE.DirectionalLight(0xffe8c0, 0.9);
-    sun.position.set(4, 10, 3);
-    sun.castShadow = true;
-    sun.shadow.mapSize.width = 1024;
-    sun.shadow.mapSize.height = 1024;
-    sun.shadow.camera.near = 0.1;
-    sun.shadow.camera.far = 20;
-    scene.add(sun);
+// Lumière douce venant du haut/derrière
+const hemi = new THREE.HemisphereLight(0x4466aa, 0x1a1a2a, 0.15);
+scene.add(hemi);
 
-    const fill = new THREE.DirectionalLight(0x8899bb, 0.3);
-    fill.position.set(-4, 2, -3);
-    scene.add(fill);
+// Soleil très faible, orienté pour éclairer le fond (Z négatif)
+const sun = new THREE.DirectionalLight(0xffe8c0, 0.2);
+sun.position.set(0, 20, -20); // derrière la caméra
+sun.castShadow = true;
+sun.shadow.mapSize.width = 1024;
+sun.shadow.mapSize.height = 1024;
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 50;
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0x8899bb, 0.05);
+fill.position.set(-10, 5, 10);
+scene.add(fill);
 
     // ─── TEXTURES ────────────────────────────────────────────────────
     function makeTex(fn, size) {
