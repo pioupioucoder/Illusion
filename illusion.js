@@ -718,24 +718,38 @@ export function buildIllusionWorld(scene, camera, canvas) {
 
     let monLivre = null;
 
-    function ajouterLivreSurBibliotheque() {
+        function ajouterLivreSurBibliotheque() {
         if (monLivre) return;
-        let bibliotheque = null;
+        let bibliotheque = window._bibliotheque || null;
         let hauteurEtagere = 0.95;
-        scene.children.forEach((child) => {
-            if (child.userData && Array.isArray(child.userData.etageres)) {
-                bibliotheque = child;
-                const etageres = child.userData.etageres;
-                if (etageres.length > 2) {
-                    hauteurEtagere = etageres[2] + 0.02;
-                } else if (etageres.length > 0) {
-                    hauteurEtagere = etageres[0] + 0.02;
+
+        if (!bibliotheque) {
+            // Si la référence globale n'existe pas, on cherche dans la scène
+            scene.children.forEach((child) => {
+                if (child.userData && Array.isArray(child.userData.etageres)) {
+                    bibliotheque = child;
+                    const etageres = child.userData.etageres;
+                    if (etageres.length > 2) {
+                        hauteurEtagere = etageres[2] + 0.02;
+                    } else if (etageres.length > 0) {
+                        hauteurEtagere = etageres[0] + 0.02;
+                    }
                 }
+            });
+        } else {
+            // Si on a la bibliothèque via window._bibliotheque, on utilise ses étagères
+            const etageres = bibliotheque.userData.etageres;
+            if (etageres && etageres.length > 2) {
+                hauteurEtagere = etageres[2] + 0.02;
+            } else if (etageres && etageres.length > 0) {
+                hauteurEtagere = etageres[0] + 0.02;
             }
-        });
+        }
+
         if (!bibliotheque) {
             console.warn('📚 Bibliothèque non trouvée, le livre sera ajouté à la scène.');
         }
+
         const livre = creerLivre3D();
         monLivre = livre;
         livre.position.set(0.6, hauteurEtagere, 0.0);
@@ -834,6 +848,7 @@ export function buildIllusionWorld(scene, camera, canvas) {
     // ─── BIBLIOTHÈQUE ──────────────────────────────────────────────
     function createBookshelf() {
         const group = new THREE.Group();
+        window._bibliotheque = group;
         const width = 2.0,
             height = 2.4,
             depth = 0.5;
@@ -1310,33 +1325,36 @@ export function buildIllusionWorld(scene, camera, canvas) {
         group.add(frame);
 
         const knobMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.5, roughness: 0.4 });
-        const knobConfigs = [
-            { x: -0.4, symbol: '⏻', action: 'power' },
-            { x: 0, symbol: '+', action: 'next' },
-            { x: 0.4, symbol: '−', action: 'prev' }
-        ];
-        const knobMeshes = [];
-        knobConfigs.forEach((cfg) => {
-            const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.10, 8), knobMat);
-            knob.rotation.x = Math.PI / 2;
-            knob.position.set(cfg.x, 0.47, 0.42);
-            knob.castShadow = true;
-            group.add(knob);
-            knobMeshes.push(knob);
-            knob.userData.action = cfg.action;
-            const iconTex = createIconTexture(cfg.symbol);
-            const iconMat = new THREE.MeshBasicMaterial({
-                map: iconTex,
-                transparent: true,
-                side: THREE.DoubleSide,
-                depthTest: true,
-                depthWrite: false
-            });
-            const icon = new THREE.Mesh(new THREE.PlaneGeometry(0.10, 0.10), iconMat);
-            icon.position.set(cfg.x, 0.47, 0.48);
-            group.add(icon);
-        });
-
+       // Dans createVintageTV, remplace la boucle :
+const knobConfigs = [
+    { x: -0.4, symbol: '⏻', action: 'power' },
+    { x: 0, symbol: '+', action: 'next' },
+    { x: 0.4, symbol: '−', action: 'prev' }
+];
+const knobMeshes = [];
+knobConfigs.forEach((cfg) => {
+    // CRÉER UN MATÉRIAU PROPRE À CE BOUTON (clone)
+    const mat = knobMat.clone();
+    const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.10, 8), mat);
+    knob.rotation.x = Math.PI / 2;
+    knob.position.set(cfg.x, 0.47, 0.42);
+    knob.castShadow = true;
+    group.add(knob);
+    knobMeshes.push(knob);
+    knob.userData.action = cfg.action;
+    // icône...
+    const iconTex = createIconTexture(cfg.symbol);
+    const iconMat = new THREE.MeshBasicMaterial({
+        map: iconTex,
+        transparent: true,
+        side: THREE.DoubleSide,
+        depthTest: true,
+        depthWrite: false
+    });
+    const icon = new THREE.Mesh(new THREE.PlaneGeometry(0.10, 0.10), iconMat);
+    icon.position.set(cfg.x, 0.47, 0.48);
+    group.add(icon);
+});
         const antMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.2 });
         const start1 = new THREE.Vector3(-0.30, 1.35, 0.1);
         const end1 = new THREE.Vector3(-0.40, 2.05, 0.15);
@@ -1604,6 +1622,7 @@ export function buildIllusionWorld(scene, camera, canvas) {
         window._cartonMaterials = { woodMat: extMat, woodHiMat: hiMat };
 
         group.position.set(-5, 0.35, 7);
+        group.userData.isCarton = true;
         group.rotation.y = 0.0;
         scene.add(group);
 
@@ -2042,134 +2061,96 @@ export function buildIllusionWorld(scene, camera, canvas) {
         group.userData.videoFile = file;
         return group;
     }
-
     function createFloppyDisks() {
-        const hostname = window.location.hostname;
-        let jsonUrl;
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            jsonUrl = '/projet/Illusion/videos/disquettes/list.json';
-        } else {
-            jsonUrl = 'videos/disquettes/list.json';
-        }
-
-        fetch(jsonUrl)
-            .then(response => {
-                if (!response.ok) throw new Error('Impossible de charger list.json');
-                return response.json();
-            })
-            .then(diskData => {
-                if (window._diskGroup) {
-                    scene.remove(window._diskGroup);
-                    window._diskGroup = null;
-                }
-
-                const diskGroup = new THREE.Group();
-                const cartonPos = new THREE.Vector3(-5, 0.35, 7);
-                diskGroup.position.set(cartonPos.x, cartonPos.y - 0.25, cartonPos.z);
-                diskGroup.rotation.y = 0;
-
-                const maxX = 0.4;
-                const maxZ = 0.35;
-                const disks = [];
-                const usedPositions = [];
-
-                diskData.forEach((entry, index) => {
-                    const color = entry.color || 0x2244aa;
-                    const disk = createFloppyDisk3D(color, entry.name, entry.file);
-                    disk.userData.diskName = entry.name;
-                    disk.userData.videoPath = 'videos/disquettes/' + entry.file;
-                    disk.userData.image = entry.image || null;
-                    disk.userData.isDisk = true;
-
-                    let attempts = 0;
-                    let x, z, overlap;
-                    do {
-                        x = (Math.random() - 0.5) * maxX * 2;
-                        z = (Math.random() - 0.5) * maxZ * 2;
-                        overlap = usedPositions.some(p => Math.abs(p.x - x) < 0.2 && Math.abs(p.z - z) < 0.15);
-                        attempts++;
-                    } while (overlap && attempts < 30);
-
-                    disk.position.set(x, 0.02, z);
-                    disk.rotation.y = (Math.random() - 0.5) * 0.4;
-                    usedPositions.push({ x, z });
-
-                    diskGroup.add(disk);
-                    disks.push(disk);
-                });
-
-                scene.add(diskGroup);
-                window._disks = disks;
-                window._diskGroup = diskGroup;
-                console.log('💾 Disquettes créées depuis list.json');
-            })
-            .catch(err => {
-                console.error('Erreur JSON :', err);
-                createFallbackDisks();
-            });
+    // Supprime l'ancien groupe s'il existe
+    if (window._diskGroup) {
+        scene.remove(window._diskGroup);
+        window._diskGroup = null;
     }
 
-    function createFallbackDisks() {
-        const diskNames = ['Video 1', 'Video 2', 'Video 3', 'Video 4'];
-        const colors = [0x2244aa, 0x44aa22, 0xaa4422, 0xaa44aa];
-        const files = ['video1.mp4', 'video2.mp4', 'video3.mp4', 'video4.mp4'];
+    const diskGroup = new THREE.Group();
+    // Positionne les disquettes à 2 mètres devant la caméra (mais en monde absolu)
+    // Comme la caméra est à (200, 1.7, 0) orientée vers +Z, on les met à (200, 1.7, 4)
+    diskGroup.position.set(200, 1.7, 4);
+    diskGroup.rotation.y = 0;
 
-        const diskGroup = new THREE.Group();
-        const cartonPos = new THREE.Vector3(-5, 0.35, 7);
-        diskGroup.position.set(cartonPos.x, cartonPos.y - 0.25, cartonPos.z);
-        diskGroup.rotation.y = 0;
+    const colors = [0xff0000, 0x00ff00, 0x0000ff, 0xffaa00];
+    const names = ['Rouge', 'Vert', 'Bleu', 'Jaune'];
 
-        const startX = -0.35;
-        const startZ = -0.25;
-        const spacingX = 0.2;
-        const spacingZ = 0.15;
-        const disks = [];
-
-        for (let i = 0; i < diskNames.length; i++) {
-            const disk = createFloppyDisk3D(colors[i % colors.length], diskNames[i], files[i]);
-            const x = startX + (i % 2) * spacingX;
-            const z = startZ + Math.floor(i / 2) * spacingZ;
-            disk.position.set(x, 0.02, z);
-            disk.rotation.y = (Math.random() - 0.5) * 0.2;
-            disk.userData.diskName = diskNames[i];
-            disk.userData.videoPath = 'videos/' + files[i];
-            disk.userData.isDisk = true;
-            diskGroup.add(disk);
-            disks.push(disk);
-        }
-
-        scene.add(diskGroup);
-        window._disks = disks;
-        window._diskGroup = diskGroup;
-        console.log('💾 Disquettes de fallback créées');
+    for (let i = 0; i < 4; i++) {
+        // Boîte plate comme une disquette, mais grande (0.5 x 0.1 x 0.5)
+        const geo = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+        const mat = new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.8,
+            roughness: 0.2,
+            metalness: 0.1
+        });
+        const disk = new THREE.Mesh(geo, mat);
+        // Position relative dans le groupe
+        const x = (i % 2) * 0.6 - 0.3;
+        const z = Math.floor(i / 2) * 0.6 - 0.3;
+        disk.position.set(x, 0, z);
+        disk.rotation.y = i * 0.5;
+        disk.userData.diskName = names[i];
+        disk.userData.isDisk = true;
+        diskGroup.add(disk);
     }
 
-    function loadVideoForDisk(disk) {
-        const video = window._video;
-        if (!video) return;
+    scene.add(diskGroup);
+    window._diskGroup = diskGroup;
+    window._disks = diskGroup.children;
+    console.log('💾 Disquettes placées à (200, 1.7, 4) !');
+}
 
-        let videoPath = disk.userData.videoPath;
-        if (!videoPath) {
-            const name = disk.userData.diskName || 'video';
-            videoPath = 'videos/disquettes/' + name + '.mp4';
-        }
-
-        const hostname = window.location.hostname;
-        let fullPath;
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            fullPath = '/projet/Illusion/' + videoPath;
-        } else {
-            fullPath = videoPath;
-        }
-        fullPath = encodeURI(fullPath);
-
-        video.src = fullPath;
-        video.load();
-        video.play().catch(() => {});
-    }
-
+// La fonction fallback appelle simplement la même chose
+function createFallbackDisks() {
     createFloppyDisks();
+}
+function createFloppyDisks() {
+    if (window._diskGroup) {
+        scene.remove(window._diskGroup);
+        window._diskGroup = null;
+    }
 
+    const diskGroup = new THREE.Group();
+    // Position absolue : juste devant la caméra (qui est à (200, 1.7, 0))
+    diskGroup.position.set(200, 1.7, 5);
+    diskGroup.rotation.y = 0;
+
+    // Créer une grosse boîte jaune fluo
+    const geo = new THREE.BoxGeometry(2, 0.5, 2);
+    const mat = new THREE.MeshStandardMaterial({
+        color: 0xffaa00,
+        emissive: 0xffaa00,
+        emissiveIntensity: 1,
+        roughness: 0,
+        metalness: 0
+    });
+    const disk = new THREE.Mesh(geo, mat);
+    disk.userData.diskName = 'TEST';
+    disk.userData.isDisk = true;
+    diskGroup.add(disk);
+
+    // Ajouter une deuxième boîte à côté
+    const disk2 = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 0.5, 1),
+        new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 1 })
+    );
+    disk2.position.set(2, 0, 0);
+    disk2.userData.isDisk = true;
+    diskGroup.add(disk2);
+
+    scene.add(diskGroup);
+    window._diskGroup = diskGroup;
+    window._disks = diskGroup.children;
+    console.log('💾 GROSSES DISQUETTES placées à (200, 1.7, 5) !');
+}
+
+function createFallbackDisks() {
+    createFloppyDisks();
+}
     // ─── INTERACTIONS ──────────────────────────────────────────────────
     // Télévision
     function setupTVInteractions() {
