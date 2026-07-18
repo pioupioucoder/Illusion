@@ -390,7 +390,8 @@ plane(ROOM_D, WALL_H, mWall, ROOM_W / 2, WALL_H / 2, 0, 0, -Math.PI / 2);
     // ─── PLAFOND ──────────────────────────────────────────────────
     plane(ROOM_W, ROOM_D, mCeil, 0, WALL_H, 0, Math.PI / 2);
 // ─── PLINTHES EN BOIS ROUGE ──────────────────────────────────
-const mBaseboard = new THREE.MeshLambertMaterial({ color: 0x6a1a1a, roughness: 0.7 });
+const mBaseboard = new THREE.MeshStandardMaterial({ color: 0x6a1a1a, roughness: 0.7 });
+//const mBaseboard = new THREE.MeshLambertMaterial({ color: 0x6a1a1a, roughness: 0.7 });
 const baseH = 0.12;
 const baseDepth = 0.03;
 box(ROOM_W, baseH, baseDepth, mBaseboard, 0, baseH / 2, -ROOM_D / 2 + 0.02);

@@ -397,49 +397,72 @@
         let last = 0;
         const SPEED = 12;
 
-        function loop(ts) {
-            const dt = Math.min((ts - last) / 1000, 0.05);
-            last = ts;
+       function resolveCollisions(pos, prevPos) {
+    const margin = 0.3;
+    const xMin = 192.2, xMax = 207.8;
+    const zMin = -7.8, zMax = 7.8;
+    const doorXMin = 199.4, doorXMax = 200.6;
 
-            // Joystick gauche : déplacement
-            let fx = jLx;
-            let fz = -jLy;
+    // Murs extérieurs
+    if (pos.x < xMin) pos.x = xMin;
+    if (pos.x > xMax) pos.x = xMax;
+    if (pos.z < zMin) pos.z = zMin;
+    if (pos.z > zMax) pos.z = zMax;
 
-            // Joystick droit : rotation
-            if (jRx !== 0) camYaw -= jRx * 0.12;
-            if (jRy !== 0) {
-                // Inversion du sens vertical (pitch)
-                camPitch -= jRy * 2 * dt;
-                camPitch = Math.max(-0.6, Math.min(0.7, camPitch));
-            }
-
-            // Application de la rotation à la caméra
-            camera.rotation.y = camYaw;
-            camera.rotation.x = camPitch;
-
-            // Mouvement
-            const cos = Math.cos(camYaw);
-            const sin = Math.sin(camYaw);
-            const forward = new THREE.Vector3(-sin, 0, -cos);
-            const right = new THREE.Vector3(cos, 0, -sin);
-            const move = new THREE.Vector3()
-                .addScaledVector(forward, fz * SPEED * dt)
-                .addScaledVector(right, fx * SPEED * dt);
-            camera.position.add(move);
-
-            updateCoordDisplay();
-
-            if (eternalGroup.update) {
-                eternalGroup.update(camera.position, dt, ts / 1000);
-            }
-
-            renderer.render(scene, camera);
-            drawJoy('jL', jLx, jLy);
-            drawJoy('jR', jRx, jRy);
-            requestAnimationFrame(loop);
+    // Mur central (sauf porte)
+    if (pos.z > -margin && pos.z < margin) {
+        if (pos.x < doorXMin || pos.x > doorXMax) {
+            if (prevPos.z < 0) pos.z = -margin;
+            else pos.z = margin;
         }
+    }
+    return pos;
+}
+function loop(ts) {
+    const dt = Math.min((ts - last) / 1000, 0.05);
+    last = ts;
 
-        requestAnimationFrame(loop);
+    const prevPos = camera.position.clone();
+
+    // Joystick gauche : déplacement
+    let fx = jLx;
+    let fz = -jLy;
+
+    // Joystick droit : rotation
+    if (jRx !== 0) camYaw -= jRx * 0.12;
+    if (jRy !== 0) {
+        camPitch -= jRy * 2 * dt;
+        camPitch = Math.max(-0.6, Math.min(0.7, camPitch));
+    }
+
+    camera.rotation.y = camYaw;
+    camera.rotation.x = camPitch;
+
+    // Mouvement
+    const cos = Math.cos(camYaw);
+    const sin = Math.sin(camYaw);
+    const forward = new THREE.Vector3(-sin, 0, -cos);
+    const right = new THREE.Vector3(cos, 0, -sin);
+    const move = new THREE.Vector3()
+        .addScaledVector(forward, fz * SPEED * dt)
+        .addScaledVector(right, fx * SPEED * dt);
+    camera.position.add(move);
+
+    // Appliquer les collisions
+    camera.position.copy(resolveCollisions(camera.position, prevPos));
+
+    updateCoordDisplay();
+
+    if (eternalGroup.update) {
+        eternalGroup.update(camera.position, dt, ts / 1000);
+    }
+
+    renderer.render(scene, camera);
+    drawJoy('jL', jLx, jLy);
+    drawJoy('jR', jRx, jRy);
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
         console.log('🌍 Mondes continus : Eternal + Illusion (décalé de 200)');
     </script>
 </body>
