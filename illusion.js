@@ -387,9 +387,109 @@ export function buildIllusionWorld(scene, camera, canvas) {
     // ─── PLAFOND ──────────────────────────────────────────────────
     plane(ROOM_W, ROOM_D, mCeil, 0, WALL_H, 0, Math.PI / 2);
 
-   // ─── LAMPES MODERNES (2 zones) ──────────────────────────────────────
+// ─── LAMPES MODERNES (2 zones) ──────────────────────────────────────
 
 // Configuration des lampes
+const lampConfigs = [
+    {
+        id: 'left',
+        position: new THREE.Vector3(0, 2.8, -4),
+        color: 0xffeedd,
+        intensity: 2.0,
+        range: 12,
+        switchPos: new THREE.Vector3(-7.85, 1.0, -4),
+        switchAngle: Math.PI / 2
+    },
+    {
+        id: 'right',
+        position: new THREE.Vector3(0, 2.8, 4),
+        color: 0xffeedd,
+        intensity: 2.0,
+        range: 12,
+        switchPos: new THREE.Vector3(7.85, 1.0, 4),
+        switchAngle: -Math.PI / 2
+    }
+];
+
+const lampStates = {}; // { id: true/false }
+const lampMeshes = {}; // { id: { light, bulbMat, originalIntensity, color } }
+const switchMeshes = [];
+
+lampConfigs.forEach((cfg) => {
+    const group = new THREE.Group();
+    group.position.copy(cfg.position);
+
+    // Ampoule
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.8, roughness: 0.2 });
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.15, 8), headMat);
+    head.position.y = 0;
+    head.rotation.x = Math.PI;
+    group.add(head);
+
+    const bulbMat = new THREE.MeshStandardMaterial({
+        color: cfg.color,
+        emissive: cfg.color,
+        emissiveIntensity: 0.8,
+        transparent: true,
+        opacity: 0.9
+    });
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), bulbMat);
+    bulb.position.y = -0.15;
+    group.add(bulb);
+
+    // Lumière
+    const light = new THREE.PointLight(cfg.color, cfg.intensity, cfg.range);
+    light.position.copy(cfg.position);
+    light.position.y -= 0.15;
+    scene.add(light);
+
+    // Câble
+    const cableMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.8, 4), cableMat);
+    cable.position.y = 0.4;
+    group.add(cable);
+
+    scene.add(group);
+
+    // Stocker les données
+    lampStates[cfg.id] = true;
+    lampMeshes[cfg.id] = {
+        light: light,
+        bulbMat: bulbMat,
+        originalIntensity: cfg.intensity,
+        color: cfg.color
+    };
+
+    // ─── INTERRUPTEUR ──
+    const switchGroup = new THREE.Group();
+    switchGroup.position.copy(cfg.switchPos);
+
+    const plateMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3, metalness: 0.2 });
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.04), plateMat);
+    plate.position.set(0, 0, 0);
+    switchGroup.add(plate);
+
+    const btnMat = new THREE.MeshStandardMaterial({
+        color: 0x44aa44,
+        emissive: 0x000000,
+        emissiveIntensity: 0,
+        roughness: 0.4
+    });
+    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.02), btnMat);
+    btn.position.set(0, 0, 0.03);
+    btn.userData.isSwitch = true;
+    btn.userData.lampId = cfg.id;
+    btn.userData.defaultColor = 0x44aa44;
+    btn.userData.hoverColor = 0x88ff88;
+    switchGroup.add(btn);
+
+    switchGroup.rotation.y = cfg.switchAngle;
+    scene.add(switchGroup);
+
+    switchMeshes.push(btn);
+});
+
+// ─── INTERACTIONS POUR LES INTERRUPTEURS ──────────────────────────
 function setupSwitchInteractions() {
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
@@ -411,13 +511,17 @@ function setupSwitchInteractions() {
         }
 
         if (newHover !== hoveredSwitch) {
+            // Restaurer l'ancien
             if (hoveredSwitch) {
-                hoveredSwitch.material.color.setHex(hoveredSwitch.userData.defaultColor);
+                const isOn = lampStates[hoveredSwitch.userData.lampId];
+                const defaultColor = isOn ? 0x44aa44 : 0xaa4444;
+                hoveredSwitch.material.color.setHex(defaultColor);
                 hoveredSwitch.material.emissive.setHex(0x000000);
                 hoveredSwitch.material.emissiveIntensity = 0;
             }
+            // Surbrillance du nouveau
             if (newHover) {
-                newHover.material.color.setHex(newHover.userData.hoverColor);
+                newHover.material.color.setHex(0x88ff88);
                 newHover.material.emissive.setHex(0xffff88);
                 newHover.material.emissiveIntensity = 0.3;
             }
@@ -428,23 +532,34 @@ function setupSwitchInteractions() {
     canvas.addEventListener('click', (event) => {
         if (!hoveredSwitch) return;
         const lampId = hoveredSwitch.userData.lampId;
-        const state = lampStates[lampId];
-        lampStates[lampId] = !state;
+        const isCurrentlyOn = lampStates[lampId];
+        // Inverser l'état
+        lampStates[lampId] = !isCurrentlyOn;
         const data = lampMeshes[lampId];
-        data.light.intensity = lampStates[lampId] ? data.light.intensity : 0;
-        const newColor = lampStates[lampId] ? data.light.color : 0x444444;
-        data.bulbMat.color.setHex(newColor);
-        data.bulbMat.emissive.setHex(newColor);
-        data.bulbMat.emissiveIntensity = lampStates[lampId] ? 0.5 : 0;
-        const btn = hoveredSwitch;
-        btn.userData.defaultColor = lampStates[lampId] ? 0x44aa44 : 0xaa4444;
-        btn.material.color.setHex(btn.userData.defaultColor);
+
+        if (lampStates[lampId]) {
+            // Rallumer
+            data.light.intensity = data.originalIntensity;
+            data.bulbMat.color.setHex(data.color);
+            data.bulbMat.emissive.setHex(data.color);
+            data.bulbMat.emissiveIntensity = 0.8;
+            // Couleur bouton : vert
+            hoveredSwitch.material.color.setHex(0x44aa44);
+            hoveredSwitch.userData.defaultColor = 0x44aa44;
+        } else {
+            // Éteindre
+            data.light.intensity = 0;
+            data.bulbMat.color.setHex(0x444444);
+            data.bulbMat.emissive.setHex(0x444444);
+            data.bulbMat.emissiveIntensity = 0;
+            // Couleur bouton : rouge
+            hoveredSwitch.material.color.setHex(0xaa4444);
+            hoveredSwitch.userData.defaultColor = 0xaa4444;
+        }
     });
 }
 
 setupSwitchInteractions();
-
-
     // ─── LIT ──────────────────────────────────────────────────────
     function createBed() {
         const group = new THREE.Group();
@@ -1905,154 +2020,7 @@ knobConfigs.forEach((cfg) => {
         return drawerState;
     }
 
-    // ─── LAMPES MODERNES (centrées sur chaque moitié) ───────────────────
-
-const lampConfigs = [
-    {
-        id: 'left',
-        position: new THREE.Vector3(0, 2.8, -4),
-        color: 0xffeedd,
-        intensity: 2.0,
-        range: 12,
-        switchPos: new THREE.Vector3(-7.85, 1.0, -4),
-        switchAngle: Math.PI / 2
-    },
-    {
-        id: 'right',
-        position: new THREE.Vector3(0, 2.8, 4),
-        color: 0xffeedd,
-        intensity: 2.0,
-        range: 12,
-        switchPos: new THREE.Vector3(7.85, 1.0, 4),
-        switchAngle: -Math.PI / 2
-    }
-];
-
-const lampStates = {};
-const lampMeshes = {};
-const switchMeshes = [];
-
-lampConfigs.forEach((cfg) => {
-    const group = new THREE.Group();
-    group.position.copy(cfg.position);
-
-    // Ampoule
-    const headMat = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.8, roughness: 0.2 });
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.15, 8), headMat);
-    head.position.y = 0;
-    head.rotation.x = Math.PI;
-    group.add(head);
-
-    const bulbMat = new THREE.MeshStandardMaterial({
-        color: cfg.color,
-        emissive: cfg.color,
-        emissiveIntensity: 0.8,
-        transparent: true,
-        opacity: 0.9
-    });
-    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), bulbMat);
-    bulb.position.y = -0.15;
-    group.add(bulb);
-
-    // Lumière (puissante)
-    const light = new THREE.PointLight(cfg.color, cfg.intensity, cfg.range);
-    light.position.copy(cfg.position);
-    light.position.y -= 0.15;
-    scene.add(light);
-
-    // Câble
-    const cableMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-    const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.8, 4), cableMat);
-    cable.position.y = 0.4;
-    group.add(cable);
-
-    scene.add(group);
-
-    lampStates[cfg.id] = true;
-    lampMeshes[cfg.id] = { group, bulb, light, bulbMat };
-
-    // Interrupteur
-    const switchGroup = new THREE.Group();
-    switchGroup.position.copy(cfg.switchPos);
-
-    const plateMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3, metalness: 0.2 });
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.04), plateMat);
-    plate.position.set(0, 0, 0);
-    switchGroup.add(plate);
-
-    const btnMat = new THREE.MeshStandardMaterial({
-        color: 0x44aa44,
-        emissive: 0x000000,
-        emissiveIntensity: 0,
-        roughness: 0.4
-    });
-    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.02), btnMat);
-    btn.position.set(0, 0, 0.03);
-    btn.userData.isSwitch = true;
-    btn.userData.lampId = cfg.id;
-    btn.userData.defaultColor = 0x44aa44;
-    btn.userData.hoverColor = 0x88ff88;
-    switchGroup.add(btn);
-
-    switchGroup.rotation.y = cfg.switchAngle;
-    scene.add(switchGroup);
-
-    switchMeshes.push(btn);
-});
-
-function setupSwitchInteractions() {
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    let hoveredSwitch = null;
-
-    canvas.addEventListener('mousemove', (event) => {
-        const rect = canvas.getBoundingClientRect();
-        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-        raycaster.setFromCamera(mouse, camera);
-
-        const intersects = raycaster.intersectObjects(switchMeshes);
-        let newHover = null;
-        if (intersects.length > 0) {
-            newHover = intersects[0].object;
-            canvas.style.cursor = 'pointer';
-        } else {
-            canvas.style.cursor = 'default';
-        }
-
-        if (newHover !== hoveredSwitch) {
-            if (hoveredSwitch) {
-                hoveredSwitch.material.color.setHex(hoveredSwitch.userData.defaultColor);
-                hoveredSwitch.material.emissive.setHex(0x000000);
-                hoveredSwitch.material.emissiveIntensity = 0;
-            }
-            if (newHover) {
-                newHover.material.color.setHex(newHover.userData.hoverColor);
-                newHover.material.emissive.setHex(0xffff88);
-                newHover.material.emissiveIntensity = 0.3;
-            }
-            hoveredSwitch = newHover;
-        }
-    });
-
-    canvas.addEventListener('click', (event) => {
-        if (!hoveredSwitch) return;
-        const lampId = hoveredSwitch.userData.lampId;
-        const state = lampStates[lampId];
-        lampStates[lampId] = !state;
-        const data = lampMeshes[lampId];
-        data.light.intensity = lampStates[lampId] ? data.light.intensity : 0;
-        const newColor = lampStates[lampId] ? data.light.color : 0x444444;
-        data.bulbMat.color.setHex(newColor);
-        data.bulbMat.emissive.setHex(newColor);
-        data.bulbMat.emissiveIntensity = lampStates[lampId] ? 0.8 : 0;
-        const btn = hoveredSwitch;
-        btn.userData.defaultColor = lampStates[lampId] ? 0x44aa44 : 0xaa4444;
-        btn.material.color.setHex(btn.userData.defaultColor);
-    });
-}
-
-setupSwitchInteractions();
+    
     // ─── CRÉATION DES OBJETS ──────────────────────────────────────
     createVintageTV();
     createCardboardBox();
